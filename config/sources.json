@@ -1,0 +1,68 @@
+[
+  {
+    "name": "hackernews-top",
+    "type": "hackernews",
+    "config": { "story_type": "top", "limit": 50, "min_score": 30 }
+  },
+  {
+    "name": "hackernews-best",
+    "type": "hackernews",
+    "config": { "story_type": "best", "limit": 30, "min_score": 50 }
+  },
+  {
+    "name": "github-new-trending",
+    "type": "github_search",
+    "config": { "created_within_days": 14, "min_stars": 50, "sort": "stars", "limit": 30 }
+  },
+  {
+    "name": "github-ai-agents",
+    "type": "github_search",
+    "config": { "created_within_days": 30, "min_stars": 30, "query": "topic:ai-agents OR topic:llm OR topic:agents", "limit": 20 }
+  },
+  {
+    "name": "rss-simonwillison",
+    "type": "rss",
+    "config": { "url": "https://simonwillison.net/atom/everything/", "limit": 30 }
+  },
+  {
+    "name": "rss-hn-frontpage",
+    "type": "rss",
+    "config": { "url": "https://hnrss.org/frontpage", "limit": 30 }
+  },
+
+  {
+    "name": "cards-reddit-sportscards",
+    "type": "rss",
+    "config": { "url": "https://www.reddit.com/r/sportscards/top/.rss?t=day", "limit": 20 }
+  },
+  {
+    "name": "cards-google-news",
+    "type": "rss",
+    "config": { "url": "https://news.google.com/rss/search?q=%E7%90%83%E5%93%A1%E5%8D%A1%20OR%20Topps%20OR%20Panini%20OR%20PSA%20%E5%8D%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+  },
+  {
+    "name": "automotive-cockpit-google-news",
+    "type": "rss",
+    "config": { "url": "https://news.google.com/rss/search?q=%E6%99%BA%E6%85%A7%E5%BA%A7%E8%89%99%20OR%20%E8%BB%8A%E7%94%A8%E5%BA%A7%E8%89%99%20OR%20%22in-vehicle%20infotainment%22%20OR%20%E8%BB%8A%E8%BC%89%E8%B3%87%E8%A8%8A%E5%A8%9B%E6%A8%82&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+  },
+  {
+    "name": "newservice-google-news",
+    "type": "rss",
+    "config": { "url": "https://news.google.com/rss/search?q=%E6%96%B0%E5%89%B5%20OR%20%E6%96%B0%E6%9C%8D%E5%8B%99%20OR%20%22new%20app%22%20OR%20startup%20launch&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+  },
+  {
+    "name": "producthunt-feed",
+    "type": "rss",
+    "config": { "url": "https://www.producthunt.com/feed", "limit": 20 }
+  },
+  {
+    "name": "rss-theverge",
+    "type": "rss",
+    "config": { "url": "https://www.theverge.com/rss/index.xml", "limit": 25 }
+  },
+  {
+    "name": "rss-techcrunch",
+    "type": "rss",
+    "config": { "url": "https://techcrunch.com/feed/", "limit": 25 }
+  }
+]

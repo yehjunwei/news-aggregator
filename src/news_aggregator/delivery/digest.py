@@ -1,0 +1,90 @@
+"""每日摘要渲染：Telegram（HTML 區塊）與檔案（Markdown）。
+
+每則包含：標題、來源標注、熱度指標、摘要、why_relevant、（縮短後）網址。
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from html import escape
+
+from ..core.timez import now_utc, to_taipei
+
+# item view 為 dict，欄位：
+#   title, title_zh, summary, why_relevant, personal_relevance_score,
+#   source_name, url, short_url, metrics{score,comments,stars}
+
+
+def _metric_str(metrics: dict) -> str:
+    parts = []
+    if metrics.get("score"):
+        parts.append(f"🔺{metrics['score']}")
+    if metrics.get("comments"):
+        parts.append(f"💬{metrics['comments']}")
+    if metrics.get("stars"):
+        parts.append(f"⭐{metrics['stars']}")
+    return " ".join(parts)
+
+
+def _title(item: dict) -> str:
+    return item.get("title_zh") or item.get("title") or "(無標題)"
+
+
+def _url(item: dict) -> str:
+    return item.get("short_url") or item.get("url") or ""
+
+
+def _meta_suffix(item: dict) -> str:
+    bits = [item.get("source_name", "")]
+    ms = _metric_str(item.get("metrics", {}))
+    if ms:
+        bits.append(ms)
+    rel = item.get("personal_relevance_score")
+    if rel is not None:
+        bits.append(f"相關度 {rel}")
+    return " · ".join(b for b in bits if b)
+
+
+def render_item_html(item: dict) -> str:
+    lines = [f"<b>{escape(_title(item))}</b>", f"<i>{escape(_meta_suffix(item))}</i>"]
+    if item.get("summary"):
+        lines.append(escape(item["summary"]))
+    if item.get("why_relevant"):
+        lines.append(f"👉 {escape(item['why_relevant'])}")
+    lines.append(escape(_url(item)))
+    return "\n".join(lines)
+
+
+def render_item_md(item: dict) -> str:
+    lines = [f"### [{_title(item)}]({_url(item)})", f"*{_meta_suffix(item)}*"]
+    if item.get("summary"):
+        lines.append(item["summary"])
+    if item.get("why_relevant"):
+        lines.append(f"👉 {item['why_relevant']}")
+    lines.append(f"🔗 {_url(item)}")
+    return "\n".join(lines)
+
+
+def _header(run_dt: datetime, count: int, title: str, *, html: bool) -> str:
+    date_str = to_taipei(run_dt).strftime("%Y-%m-%d")
+    if html:
+        return f"📰 <b>{title}</b> — {date_str}（共 {count} 則）"
+    return f"# 📰 {title} — {date_str}（共 {count} 則）"
+
+
+def render_telegram(
+    items: list[dict], run_dt: datetime | None = None, title: str = "每日新聞精選"
+) -> tuple[str, list[str]]:
+    run_dt = run_dt or now_utc()
+    header = _header(run_dt, len(items), title, html=True)
+    blocks = [render_item_html(it) for it in items]
+    return header, blocks
+
+
+def render_markdown(
+    items: list[dict], run_dt: datetime | None = None, title: str = "每日新聞精選"
+) -> str:
+    run_dt = run_dt or now_utc()
+    header = _header(run_dt, len(items), title, html=False)
+    blocks = [render_item_md(it) for it in items]
+    return header + "\n\n" + "\n\n---\n\n".join(blocks) + "\n"

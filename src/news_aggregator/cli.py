@@ -1,0 +1,73 @@
+"""命令列進入點。
+
+用法：
+  python -m news_aggregator.cli run        # 完整流程並推送
+  python -m news_aggregator.cli dry-run    # 完整流程但不推送（仍寫 digest 檔）
+  python -m news_aggregator.cli fetch       # 只抓取 + 去重，不 enrich/推送
+  python -m news_aggregator.cli init-db     # 僅建表
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+
+from . import pipeline
+from .config import get_settings
+from .db.session import init_db, make_engine
+
+
+def _setup_logging(verbose: bool) -> None:
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="news-aggregator")
+    parser.add_argument(
+        "command",
+        nargs="?",
+        default="run",
+        choices=["run", "dry-run", "fetch", "init-db"],
+    )
+    parser.add_argument(
+        "--profile",
+        default="all",
+        choices=["all", "morning", "evening"],
+        help="推送時段 profile（morning=專業資訊 / evening=輕鬆閱讀）",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true")
+    args = parser.parse_args()
+
+    _setup_logging(args.verbose)
+    settings = get_settings()
+
+    if args.command == "init-db":
+        init_db(make_engine(settings.resolved_database_url))
+        print("DB 已初始化：", settings.resolved_database_url)
+        return
+
+    result = asyncio.run(
+        pipeline.run(
+            settings,
+            dry_run=(args.command == "dry-run"),
+            fetch_only=(args.command == "fetch"),
+            profile=args.profile,
+        )
+    )
+    line = (
+        f"✅ 新聞精選完成：新增 {result['new_items']} 則、"
+        f"摘要 {result['enriched']} 則、推送 {result['delivered']} 則"
+    )
+    if result.get("tokens"):
+        line += f"、{result['tokens']:,} tokens"
+        if result.get("cost_usd") is not None:
+            line += f" ≈ US${result['cost_usd']:.4f}"
+    print(line)
+
+
+if __name__ == "__main__":
+    main()
