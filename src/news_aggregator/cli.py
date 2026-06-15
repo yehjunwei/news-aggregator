@@ -19,10 +19,17 @@ from .db.session import init_db, make_engine
 
 
 def _setup_logging(verbose: bool) -> None:
+    # 預設只顯示 WARNING 以上，避免 cron announce 把整包 INFO log 推到 Telegram。
+    # -v 時才開 DEBUG（含 httpx 連線細節）。
     logging.basicConfig(
-        level=logging.DEBUG if verbose else logging.INFO,
+        level=logging.DEBUG if verbose else logging.WARNING,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    if not verbose:
+        # 非 verbose：成功時 stderr 應安靜，cron announce 只會看到 stdout 的單行結果。
+        # 真正的問題（來源失敗、缺設定）以 WARNING/ERROR 仍會顯示。
+        for noisy in ("httpx", "httpcore"):
+            logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 def main() -> None:
