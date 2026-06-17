@@ -261,29 +261,57 @@ def top_undelivered(session, n: int) -> list[Item]:
     )
 
 
-def select_diverse(items: list[Item], top_n: int, max_per_category: int) -> list[Item]:
-    """從（已按分數排序的）候選中挑 top_n，每類別最多 max_per_category 則。
+def select_diverse(
+    items: list[Item],
+    top_n: int,
+    max_per_category: int,
+    min_per_category: int = 0,
+) -> list[Item]:
+    """從（已按分數排序的）候選中挑 top_n，兼顧每類別保底與上限。
 
-    若受上限限制仍填不滿 top_n，再用 overflow（仍按分數）補齊。
+    1. 保底：先確保每個有貨的類別至少 min_per_category 則（即使分數偏低）。
+    2. 補名額：剩餘名額按分數補，每類別不超過 max_per_category。
+    3. 仍不足：放寬上限，按分數補滿 top_n。
+    最後依分數由高到低排序輸出（保底項目仍在，只是落在後段）。
     """
-    if max_per_category <= 0:
-        return items[:top_n]
+    cap = max_per_category if max_per_category > 0 else top_n
     selected: list[Item] = []
-    overflow: list[Item] = []
+    seen: set[int] = set()
     counts: dict[str, int] = {}
-    for item in items:
-        cat = item.category or "other"
-        if counts.get(cat, 0) < max_per_category:
-            selected.append(item)
-            counts[cat] = counts.get(cat, 0) + 1
+
+    def take(item: Item) -> None:
+        selected.append(item)
+        seen.add(id(item))
+        counts[item.category or "other"] = counts.get(item.category or "other", 0) + 1
+
+    # 1. 保底：每類別至少 min_per_category（items 已按分數排序，取各類別前幾名）
+    if min_per_category > 0:
+        per_cat: dict[str, int] = {}
+        for item in items:
             if len(selected) >= top_n:
-                return selected
-        else:
-            overflow.append(item)
-    for item in overflow:
+                break
+            cat = item.category or "other"
+            if per_cat.get(cat, 0) < min_per_category:
+                take(item)
+                per_cat[cat] = per_cat.get(cat, 0) + 1
+
+    # 2. 按分數補名額，尊重每類別上限
+    for item in items:
         if len(selected) >= top_n:
             break
-        selected.append(item)
+        if id(item) in seen:
+            continue
+        if counts.get(item.category or "other", 0) < cap:
+            take(item)
+
+    # 3. 仍不足則放寬上限補滿
+    for item in items:
+        if len(selected) >= top_n:
+            break
+        if id(item) not in seen:
+            take(item)
+
+    selected.sort(key=lambda it: it.final_score or 0.0, reverse=True)
     return selected[:top_n]
 
 
@@ -446,7 +474,10 @@ async def run(
             if allowed is not None:
                 allowed_set = set(allowed)
                 candidates = [c for c in candidates if (c.category or "other") in allowed_set]
-            top = select_diverse(candidates, top_n, settings.max_per_category)
+            top = select_diverse(
+                candidates, top_n, settings.max_per_category,
+                min_per_category=prof.get("min_per_category", 0),
+            )
             summary["delivered"] = len(top)
             if top:
                 slug = profile if profile != "all" else ""

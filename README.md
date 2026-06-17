@@ -3,7 +3,7 @@
 每天從多個來源抓取新聞，**去重 → 熱度追蹤 → LLM 分類/繁中摘要/相關度評分 → 多元化排序 → Telegram 推送**個人化每日精選。模組化設計，新增來源不需動主流程。
 
 - 執行環境：Python 3.12 + [uv](https://docs.astral.sh/uv/)
-- 排程：openclaw gateway cron，每天台北 **06:30（晨間·專業資訊）** 與 **20:00（晚間·輕鬆閱讀）** 各推 10 則
+- 排程：openclaw gateway cron，每天台北 **06:30（晨間·專業資訊）** 與 **20:00（晚間·輕鬆閱讀）** 各推 20 則（每主題保底 2 則）
 - 位置：`/home/tony/.openclaw/workspace/scripts/news-aggregator/`
 
 ---
@@ -38,7 +38,7 @@ seed sources → fetch → persist+dedup → enrich(LLM) → score → rank+多�
 | **persist + dedup** | `pipeline.persist_results` + `core/dedup` | 三層去重：①`(source, external_id)` ②canonical URL / content hash ③標題相似度（rapidfuzz）。新項目寫 `items`；既有項目只追加一筆 `item_metrics`（熱度時序） |
 | **enrich** | `enrich/llm` + `enrich/classify` | 只對「未推送且未加值」項目，**批次**呼叫 LLM 回傳 JSON：category、繁中標題、N 句摘要、why_relevant、相關度 0–100。失敗容錯（略過不中斷） |
 | **score** | `scoring/engine` | `final = w_interest × (relevance/100) × (1+velocity) × recency_decay`，寫回 `items.final_score` |
-| **rank** | `pipeline.select_diverse` | 取候選池後做**每類別上限**挑選，避免單一類別洗版 |
+| **rank** | `pipeline.select_diverse` | 取候選池後**先每類別保底 `min_per_category`、再按分數補名額（受每類別上限約束）**，兼顧冷門主題曝光與避免單一類別洗版 |
 | **deliver** | `delivery/*` + `core/shorten` | 縮短網址（TinyURL）→ 渲染 → Telegram 分段推送 + 寫每日 Markdown digest 檔，標記 `delivered` |
 
 時間一律以 **UTC** 儲存，顯示時轉 **Asia/Taipei**（`core/timez`）。
@@ -162,7 +162,10 @@ https://news.google.com/rss/search?q=<URL編碼的查詢>&hl=zh-TW&gl=TW&ceid=TW
 ```
 
 目前已內建來源：HN(top/best)、GitHub(新專案/AI agents)、Simon Willison、HN frontpage、
-球員卡(reddit + Google News)、車用座艙(Google News)、新服務(Google News)、Product Hunt、The Verge、TechCrunch。
+球員卡(reddit + Google News)、車用座艙(Google News)、新服務(Google News)、The Verge、TechCrunch、
+NBA(Google News + ESPN)、技術/創投 YouTube 訪談(Lex Fridman / Y Combinator / a16z 頻道 RSS)、科技深度長文(Ars Technica / Stratechery)、
+世界盃足球(Google News)、新書書評(Google News)、串流新劇評價 Netflix/Apple TV(Google News)。
+（Product Hunt feed 多為隨機 SaaS，已 `enabled:false` 停用以提升晚間品質。）
 
 ### 新增一個全新「類型」的來源
 1. 在 `sources/` 新增 adapter，實作 `source_type` 與 `async def fetch(client, state) -> FetchResult`。
@@ -179,18 +182,22 @@ https://news.google.com/rss/search?q=<URL編碼的查詢>&hl=zh-TW&gl=TW&ceid=TW
 ```
 final = w_interest × (relevance / 100) × (1 + velocity_boost) × recency_decay
 ```
-- `w_interest`：類別權重 — **高(1.0)**：AI agents、AI coding、dev tools、GitHub 新專案、HN、YouTube 技術訪談、新 App/服務、Product Hunt；**中(0.6)**：NBA、球員卡、車用座艙、持股、AI 應用、小幅 benchmark 論文；其他 0.4。
+- `w_interest`：類別權重 — **高(1.0)**：AI agents、AI coding、dev tools、GitHub 新專案、HN、YouTube 技術訪談、新 App/服務、Product Hunt；**中(0.6)**：NBA、球員卡、車用座艙、持股、AI 應用、小幅 benchmark 論文、科技深度長文(tech_feature)、世界盃足球(world_cup)、新書書評(book_review)、串流新劇評價(tv_streaming)；其他 0.4。
 - `relevance`：LLM 給的個人相關度 0–100。
 - `velocity_boost`：由 `item_metrics` 時序算熱度增速（log 壓縮、封頂）。
 - `recency_decay`：依發布時間指數衰減。
 
-**多元性**（`pipeline.select_diverse`）：先取較大候選池（`TOP_N × 5`，按分數排序），再貪婪挑選、**每類別最多 `MAX_PER_CATEGORY` 則**；若受限填不滿 `TOP_N`，才用 overflow 補齊。這是讓低權重但你關心的主題（球員卡、車用座艙）擠進每日推送的關鍵。
+**多元性**（`pipeline.select_diverse`）：取較大候選池（按分數排序）後分三步挑選：
+1. **保底**：每個有貨的類別先保證至少 `min_per_category` 則（profile 設定，晨/晚皆為 2），即使分數偏低也納入——這是讓世界盃、新書書評、新劇評價等冷門或慢節奏主題每天都看得到的關鍵。
+2. **補名額**：剩餘名額按分數補，**每類別最多 `MAX_PER_CATEGORY` 則**，避免被 AI/HN 洗版。
+3. **補滿**：若仍不足則放寬上限按分數補滿 `TOP_N`。
+最後依分數由高到低排序輸出（保底的低分項目落在後段）。
 
 ---
 
 ## 排程
 
-由 openclaw gateway 管理，分**兩個時段**各推 10 則：
+由 openclaw gateway 管理，分**兩個時段**各推 20 則（每主題保底 2 則）：
 
 | 時段 | 時間（台北） | Job ID | 指令 | 內容 |
 |------|------|--------|------|------|
@@ -242,7 +249,7 @@ persist+dedup、classify 容錯、多元性挑選、Telegram 分段、digest 渲
 - 重複事件聚合：同一事件多來源時合併成一則，列出多個出處。
 
 **來源擴充**
-- 補齊 spec 規劃但本期未做的 adapter：GitHub Trending、Product Hunt GraphQL（取代 RSS）、Hugging Face Daily Papers、Reddit API、YouTube channel RSS、RSSHub。
+- 補齊 spec 規劃但本期未做的 adapter：GitHub Trending、Product Hunt GraphQL（取代 RSS）、Hugging Face Daily Papers、Reddit API、RSSHub。（YouTube channel RSS 已用於技術/創投訪談來源。）
 - 意見領袖：YouTube 頻道訂閱清單、Nitter/X 替代來源。
 
 **排序 / 個人化**

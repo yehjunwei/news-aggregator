@@ -32,6 +32,10 @@ CATEGORY_WEIGHTS = {
     "holdings": MID,
     "ai_application": MID,
     "ai_paper": MID,
+    "tech_feature": MID,
+    "world_cup": MID,
+    "book_review": MID,
+    "tv_streaming": MID,
     # 其他
     "other": FALLBACK,
 }

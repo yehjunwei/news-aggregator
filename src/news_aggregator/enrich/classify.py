@@ -27,6 +27,10 @@ CATEGORIES = [
     "holdings",       # 手上持股相關
     "ai_application", # AI 應用一般新聞
     "ai_paper",       # AI 論文（小幅 benchmark）
+    "tech_feature",   # 科技深度長文 / 產業觀點分析
+    "world_cup",      # 世界盃足球賽
+    "book_review",    # 新書書評 / 讀後心得 / 暢銷書
+    "tv_streaming",   # Netflix / Apple TV 等串流新劇評價
     "other",
 ]
 
@@ -40,7 +44,11 @@ _INTEREST = (
     "高（personal_relevance_score 偏高）：AI agents、AI coding、最新軟體工具、"
     "GitHub 新專案、Hacker News 熱門、技術 YouTube 訪談、新 App / 新服務、Product Hunt。\n"
     "中：NBA、籃球球員卡（Topps/Panini/PSA）、車用座艙 / 智慧座艙 / 車載 HMI、"
-    "手上持股相關、AI 應用一般新聞、僅小幅 benchmark 改善的 AI 論文。\n"
+    "手上持股相關、AI 應用一般新聞、僅小幅 benchmark 改善的 AI 論文、"
+    "科技深度長文 / 產業觀點分析（tech_feature，如 Stratechery、Ars Technica 深度報導、創投/技術 YouTube 訪談的觀點內容）、"
+    "世界盃足球賽（world_cup，賽事/賽程/球員/分組）、"
+    "新書書評與讀後心得（book_review，新書/暢銷書/閱讀心得）、"
+    "串流新劇評價（tv_streaming，Netflix / Apple TV / Disney+ 等新上架影集劇集的評價與推薦）。\n"
     "其他主題給較低分。"
 )
 

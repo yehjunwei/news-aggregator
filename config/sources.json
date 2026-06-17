@@ -53,7 +53,59 @@
   {
     "name": "producthunt-feed",
     "type": "rss",
+    "enabled": false,
     "config": { "url": "https://www.producthunt.com/feed", "limit": 20 }
+  },
+
+  {
+    "name": "nba-google-news",
+    "type": "rss",
+    "config": { "url": "https://news.google.com/rss/search?q=NBA%20%E7%90%83%E5%93%A1%20OR%20%E4%BA%A4%E6%98%93%20OR%20%E8%B3%BD%E4%BA%8B&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 25 }
+  },
+  {
+    "name": "nba-espn",
+    "type": "rss",
+    "config": { "url": "https://www.espn.com/espn/rss/nba/news", "limit": 20 }
+  },
+  {
+    "name": "yt-lex-fridman",
+    "type": "rss",
+    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA", "limit": 15 }
+  },
+  {
+    "name": "yt-ycombinator",
+    "type": "rss",
+    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg", "limit": 15 }
+  },
+  {
+    "name": "yt-a16z",
+    "type": "rss",
+    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA", "limit": 15 }
+  },
+  {
+    "name": "tech-arstechnica",
+    "type": "rss",
+    "config": { "url": "https://feeds.arstechnica.com/arstechnica/index", "limit": 20 }
+  },
+  {
+    "name": "tech-stratechery",
+    "type": "rss",
+    "config": { "url": "https://stratechery.com/feed/", "limit": 10 }
+  },
+  {
+    "name": "worldcup-google-news",
+    "type": "rss",
+    "config": { "url": "https://news.google.com/rss/search?q=%E4%B8%96%E7%95%8C%E7%9B%83%E8%B6%B3%E7%90%83%20OR%20FIFA%20World%20Cup%20OR%20%E5%9C%8B%E9%9A%9B%E8%B6%B3%E7%B8%BD&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 25 }
+  },
+  {
+    "name": "bookreview-google-news",
+    "type": "rss",
+    "config": { "url": "https://news.google.com/rss/search?q=%E6%96%B0%E6%9B%B8%20%E6%9B%B8%E8%A9%95%20OR%20%E8%AE%80%E5%BE%8C%E5%BF%83%E5%BE%97%20OR%20%E6%9A%A2%E9%8A%B7%E6%9B%B8&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+  },
+  {
+    "name": "tvstreaming-google-news",
+    "type": "rss",
+    "config": { "url": "https://news.google.com/rss/search?q=Netflix%20%E6%96%B0%E5%8A%87%20OR%20Apple%20TV%20%E5%BD%B1%E9%9B%86%20OR%20%E4%B8%B2%E6%B5%81%20%E6%96%B0%E4%B8%8A%E6%9E%B6%20%E8%A9%95%E5%83%B9&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
   },
   {
     "name": "rss-theverge",
