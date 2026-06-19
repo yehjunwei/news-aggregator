@@ -85,7 +85,8 @@ async def fetch_all(http: HttpClient, registry, sources: list[Source]):
             result = await adapter.fetch(http, state)
             return source, result
         except Exception as exc:  # noqa: BLE001 - 隔離單一來源失敗
-            logger.exception("來源 %s 抓取失敗：%s", source.name, exc)
+            # ponytail: 單一來源失敗已隔離（常見：Google News RSS 503），降到 INFO 不推 Telegram；-v 看 traceback
+            logger.info("來源 %s 抓取失敗：%s", source.name, exc)
             return source, None
 
     return await asyncio.gather(*[_fetch(s) for s in sources])

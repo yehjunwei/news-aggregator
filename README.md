@@ -155,6 +155,11 @@ uv run alembic revision --autogenerate -m "..."  # 改 models 後產生新版本
 | `github_search` | `created_within_days`, `min_stars`, `query`, `sort`, `order`, `limit` |
 | `rss` | `url`, `limit` |
 
+共用欄位：
+
+- **`limit`** — 每次抓取從該來源最多取幾則（取 feed/列表**最前面**的 N 則，越前面通常越新/越熱）。預設：`rss` 40、`hackernews` 50、`github_search` 30。調小省 token、調大增覆蓋。
+- **`min_score`**（僅 `hackernews`）— 過濾門檻：HN 分數低於此值的故事直接捨棄，不進後續流程。預設 0（不過濾）。`github_search` 的類比欄位是 `min_stars`（star 數下限）。
+
 **RSS 是最萬用的擴充方式** —— 任何主題都能用 Google News 中文搜尋餵入，不必寫新 adapter：
 
 ```

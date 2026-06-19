@@ -91,7 +91,8 @@ class HttpClient:
                 if attempt >= self.max_retries:
                     break
                 backoff = min(2 ** attempt, 30)
-                logger.warning(
+                # ponytail: routine 重試（Google News RSS 常態 503），降到 INFO 不推 Telegram；-v 才看得到
+                logger.info(
                     "HTTP %s %s 失敗（第 %d/%d 次）：%s；%ss 後重試",
                     method, url, attempt, self.max_retries, exc, backoff,
                 )

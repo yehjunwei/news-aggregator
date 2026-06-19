@@ -2,43 +2,43 @@
   {
     "name": "hackernews-top",
     "type": "hackernews",
-    "config": { "story_type": "top", "limit": 50, "min_score": 30 }
+    "config": { "story_type": "top", "limit": 50, "min_score": 10 }
   },
   {
     "name": "hackernews-best",
     "type": "hackernews",
-    "config": { "story_type": "best", "limit": 30, "min_score": 50 }
+    "config": { "story_type": "best", "limit": 30, "min_score": 10 }
   },
   {
     "name": "github-new-trending",
     "type": "github_search",
-    "config": { "created_within_days": 14, "min_stars": 50, "sort": "stars", "limit": 30 }
+    "config": { "created_within_days": 14, "min_stars": 500, "sort": "stars", "limit": 10 }
   },
   {
     "name": "github-ai-agents",
     "type": "github_search",
-    "config": { "created_within_days": 30, "min_stars": 30, "query": "topic:ai-agents OR topic:llm OR topic:agents", "limit": 20 }
+    "config": { "created_within_days": 30, "min_stars": 500, "query": "topic:ai-agents OR topic:llm OR topic:agents", "limit": 10 }
   },
   {
     "name": "rss-simonwillison",
     "type": "rss",
-    "config": { "url": "https://simonwillison.net/atom/everything/", "limit": 30 }
+    "config": { "url": "https://simonwillison.net/atom/everything/", "limit": 10 }
   },
   {
     "name": "rss-hn-frontpage",
     "type": "rss",
-    "config": { "url": "https://hnrss.org/frontpage", "limit": 30 }
+    "config": { "url": "https://hnrss.org/frontpage", "limit": 10 }
   },
 
   {
     "name": "cards-reddit-sportscards",
     "type": "rss",
-    "config": { "url": "https://www.reddit.com/r/sportscards/top/.rss?t=day", "limit": 20 }
+    "config": { "url": "https://www.reddit.com/r/sportscards/top/.rss?t=day", "limit": 10 }
   },
   {
     "name": "cards-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%E7%90%83%E5%93%A1%E5%8D%A1%20OR%20Topps%20OR%20Panini%20OR%20PSA%20%E5%8D%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+    "config": { "url": "https://news.google.com/rss/search?q=%E7%90%83%E5%93%A1%E5%8D%A1%20OR%20Topps%20OR%20Panini%20OR%20PSA%20%E5%8D%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 10 }
   },
   {
     "name": "automotive-cockpit-google-news",
@@ -48,44 +48,44 @@
   {
     "name": "newservice-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%E6%96%B0%E5%89%B5%20OR%20%E6%96%B0%E6%9C%8D%E5%8B%99%20OR%20%22new%20app%22%20OR%20startup%20launch&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+    "config": { "url": "https://news.google.com/rss/search?q=%E6%96%B0%E5%89%B5%20OR%20%E6%96%B0%E6%9C%8D%E5%8B%99%20OR%20%22new%20app%22%20OR%20startup%20launch&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 10 }
   },
   {
     "name": "producthunt-feed",
     "type": "rss",
     "enabled": false,
-    "config": { "url": "https://www.producthunt.com/feed", "limit": 20 }
+    "config": { "url": "https://www.producthunt.com/feed", "limit": 10 }
   },
 
   {
     "name": "nba-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=NBA%20%E7%90%83%E5%93%A1%20OR%20%E4%BA%A4%E6%98%93%20OR%20%E8%B3%BD%E4%BA%8B&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 25 }
+    "config": { "url": "https://news.google.com/rss/search?q=NBA%20%E7%90%83%E5%93%A1%20OR%20%E4%BA%A4%E6%98%93%20OR%20%E8%B3%BD%E4%BA%8B&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 10 }
   },
   {
     "name": "nba-espn",
     "type": "rss",
-    "config": { "url": "https://www.espn.com/espn/rss/nba/news", "limit": 20 }
+    "config": { "url": "https://www.espn.com/espn/rss/nba/news", "limit": 5 }
   },
   {
     "name": "yt-lex-fridman",
     "type": "rss",
-    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA", "limit": 15 }
+    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA", "limit": 5 }
   },
   {
     "name": "yt-ycombinator",
     "type": "rss",
-    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg", "limit": 15 }
+    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg", "limit": 5 }
   },
   {
     "name": "yt-a16z",
     "type": "rss",
-    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA", "limit": 15 }
+    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA", "limit": 5 }
   },
   {
     "name": "tech-arstechnica",
     "type": "rss",
-    "config": { "url": "https://feeds.arstechnica.com/arstechnica/index", "limit": 20 }
+    "config": { "url": "https://feeds.arstechnica.com/arstechnica/index", "limit": 5 }
   },
   {
     "name": "tech-stratechery",
@@ -95,7 +95,7 @@
   {
     "name": "worldcup-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%E4%B8%96%E7%95%8C%E7%9B%83%E8%B6%B3%E7%90%83%20OR%20FIFA%20World%20Cup%20OR%20%E5%9C%8B%E9%9A%9B%E8%B6%B3%E7%B8%BD&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 25 }
+    "config": { "url": "https://news.google.com/rss/search?q=%E4%B8%96%E7%95%8C%E7%9B%83%E8%B6%B3%E7%90%83%20OR%20FIFA%20World%20Cup%20OR%20%E5%9C%8B%E9%9A%9B%E8%B6%B3%E7%B8%BD&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 5 }
   },
   {
     "name": "bookreview-google-news",
@@ -105,16 +105,24 @@
   {
     "name": "tvstreaming-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=Netflix%20%E6%96%B0%E5%8A%87%20OR%20Apple%20TV%20%E5%BD%B1%E9%9B%86%20OR%20%E4%B8%B2%E6%B5%81%20%E6%96%B0%E4%B8%8A%E6%9E%B6%20%E8%A9%95%E5%83%B9&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+    "config": { "url": "https://news.google.com/rss/search?q=Netflix%20%E6%96%B0%E5%8A%87%20OR%20Apple%20TV%20%E5%BD%B1%E9%9B%86%20OR%20%E4%B8%B2%E6%B5%81%20%E6%96%B0%E4%B8%8A%E6%9E%B6%20%E8%A9%95%E5%83%B9&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 5 }
   },
   {
     "name": "rss-theverge",
     "type": "rss",
-    "config": { "url": "https://www.theverge.com/rss/index.xml", "limit": 25 }
+    "config": { "url": "https://www.theverge.com/rss/index.xml", "limit": 10 }
   },
   {
     "name": "rss-techcrunch",
     "type": "rss",
-    "config": { "url": "https://techcrunch.com/feed/", "limit": 25 }
-  }
+    "config": { "url": "https://techcrunch.com/feed/", "limit": 5 }
+  },
+
+  { "name": "x-elonmusk",       "type": "rss", "config": { "url": "https://nitter.net/elonmusk/rss",       "limit": 10 } },
+  { "name": "x-karpathy",       "type": "rss", "config": { "url": "https://nitter.net/karpathy/rss",       "limit": 10 } },
+  { "name": "x-anthropic",      "type": "rss", "config": { "url": "https://nitter.net/AnthropicAI/rss",    "limit": 5 } },
+  { "name": "x-openai",         "type": "rss", "config": { "url": "https://nitter.net/OpenAI/rss",         "limit": 5 } },
+  { "name": "x-sama",           "type": "rss", "config": { "url": "https://nitter.net/sama/rss",           "limit": 10 } },
+  { "name": "x-shams",          "type": "rss", "config": { "url": "https://nitter.net/ShamsCharania/rss",  "limit": 5 } },
+  { "name": "x-nba",            "type": "rss", "config": { "url": "https://nitter.net/NBA/rss",            "limit": 10 } }
 ]
