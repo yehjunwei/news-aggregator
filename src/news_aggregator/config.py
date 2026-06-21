@@ -47,7 +47,9 @@ class Settings(BaseSettings):
     sources_file: Path = CONFIG_DIR / "sources.json"
 
     # --- pipeline / scoring ---
-    top_n: int = 20
+    top_n: int = 20  # 每日推送的「上限」；低於門檻時不會湊滿
+    min_personal_score: int = 50  # 個人相關度（已折算 niche 懲罰）硬門檻，低於此不推送
+    candidate_max_age_days: int = 3  # 候選池只看近 N 天抓進來的項目，避免未推送的舊 backlog 永久佔位
     max_per_category: int = 4  # 每類別在每日推送的最多則數（0=不限）
     dedup_title_threshold: int = 88
     dedup_lookback_days: int = 7

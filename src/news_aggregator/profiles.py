@@ -25,7 +25,7 @@ PROFILES: dict[str, dict] = {
             "holdings",
         ],
         "top_n": 20,
-        "min_per_category": 2,
+        "min_per_category": 0,
     },
     "evening": {
         "label": "晚間精選 · 輕鬆閱讀",
@@ -41,7 +41,7 @@ PROFILES: dict[str, dict] = {
             "other",
         ],
         "top_n": 20,
-        "min_per_category": 2,
+        "min_per_category": 0,
     },
     "all": {
         "label": "每日新聞精選",

@@ -45,6 +45,16 @@ def _meta_suffix(item: dict) -> str:
     return " · ".join(b for b in bits if b)
 
 
+def item_keyboard(item_id: int) -> dict:
+    """每則底下的 👍/👎 inline 按鈕；callback_data 直接帶 item id，回收時免對應表。"""
+    return {
+        "inline_keyboard": [[
+            {"text": "👍 想看更多", "callback_data": f"fb:{item_id}:up"},
+            {"text": "👎 不感興趣", "callback_data": f"fb:{item_id}:down"},
+        ]]
+    }
+
+
 def render_item_html(item: dict) -> str:
     lines = [f"<b>{escape(_title(item))}</b>", f"<i>{escape(_meta_suffix(item))}</i>"]
     if item.get("summary"):

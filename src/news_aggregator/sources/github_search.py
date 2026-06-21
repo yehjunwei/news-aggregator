@@ -64,26 +64,25 @@ class GitHubSearchAdapter:
             params={"q": query, "sort": sort, "order": order, "per_page": min(limit, 100)},
         )
         data = resp.json() or {}
-
-        items: list[RawItem] = []
-        for repo in (data.get("items") or [])[:limit]:
-            description = repo.get("description") or ""
-            title = f"{repo['full_name']}: {description}".strip().rstrip(":").strip()
-            items.append(
-                RawItem(
-                    source_name=state.name,
-                    external_id=str(repo["id"]),
-                    url=repo["html_url"],
-                    title=title,
-                    author=(repo.get("owner") or {}).get("login"),
-                    published_at=_parse_iso(repo.get("created_at")),
-                    metrics={
-                        "score": repo.get("stargazers_count"),
-                        "comments": repo.get("open_issues_count"),
-                        "views": repo.get("watchers_count"),
-                        "stars": repo.get("stargazers_count"),
-                    },
-                    content=description or None,
-                )
-            )
+        items = [_repo_to_raw(repo, state.name) for repo in (data.get("items") or [])[:limit]]
         return FetchResult(items=items)
+
+
+def _repo_to_raw(repo: dict, source_name: str) -> RawItem:
+    description = repo.get("description") or ""
+    title = f"{repo['full_name']}: {description}".strip().rstrip(":").strip()
+    return RawItem(
+        source_name=source_name,
+        external_id=str(repo["id"]),
+        url=repo["html_url"],
+        title=title,
+        author=(repo.get("owner") or {}).get("login"),
+        published_at=_parse_iso(repo.get("created_at")),
+        metrics={
+            "score": repo.get("stargazers_count"),
+            "comments": repo.get("open_issues_count"),
+            "views": repo.get("watchers_count"),
+            "stars": repo.get("stargazers_count"),
+        },
+        content=description or None,
+    )

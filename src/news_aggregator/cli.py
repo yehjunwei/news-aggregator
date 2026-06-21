@@ -32,6 +32,20 @@ def _setup_logging(verbose: bool) -> None:
             logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
+def _summary_line(result: dict) -> str:
+    line = (
+        f"✅ 新聞精選完成：新增 {result['new_items']} 則、"
+        f"摘要 {result['enriched']} 則、推送 {result['delivered']} 則"
+    )
+    if result.get("feedback"):
+        line += f"、回饋 {result['feedback']} 筆"
+    if result.get("tokens"):
+        line += f"、{result['tokens']:,} tokens"
+        if result.get("cost_usd") is not None:
+            line += f" ≈ US${result['cost_usd']:.4f}"
+    return line
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="news-aggregator")
     parser.add_argument(
@@ -65,15 +79,7 @@ def main() -> None:
             profile=args.profile,
         )
     )
-    line = (
-        f"✅ 新聞精選完成：新增 {result['new_items']} 則、"
-        f"摘要 {result['enriched']} 則、推送 {result['delivered']} 則"
-    )
-    if result.get("tokens"):
-        line += f"、{result['tokens']:,} tokens"
-        if result.get("cost_usd") is not None:
-            line += f" ≈ US${result['cost_usd']:.4f}"
-    print(line)
+    print(_summary_line(result))
 
 
 if __name__ == "__main__":

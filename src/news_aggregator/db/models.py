@@ -55,6 +55,7 @@ class Item(Base):
     why_relevant: Mapped[str | None] = mapped_column(Text, nullable=True)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     personal_relevance_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    feedback: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 使用者回饋：+1 讚 / -1 倒讚 / None 未評
     final_score: Mapped[float] = mapped_column(Float, default=0.0, index=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
