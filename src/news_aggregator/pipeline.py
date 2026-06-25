@@ -14,7 +14,6 @@ from sqlalchemy import select
 from .config import DATA_DIR, Settings, get_settings
 from .core.dedup import canonical_url, content_hash, normalize_title
 from .core.http import HttpClient
-from .core.shorten import shorten_url
 from .core.timez import now_utc, to_taipei, to_utc
 from .db.models import Digest, Item, ItemMetric, Source
 from .db.session import init_db, make_engine, make_session_factory
@@ -343,7 +342,7 @@ def _write_json_file(views: list[dict], run_dt, title: str, slug: str = "") -> P
     """輸出供官網讀取的 JSON：保留原始 url（非縮短）。同時清掉一年前的舊檔。"""
     JSON_DIR.mkdir(parents=True, exist_ok=True)
     date_str = to_taipei(run_dt).strftime("%Y-%m-%d")
-    items = [{k: v for k, v in view.items() if k != "short_url"} for view in views]
+    items = views
     payload = {
         "date": date_str,
         "slug": slug or "all",
@@ -389,8 +388,6 @@ async def deliver(
 ):
     run_dt = now_utc()
     views = [_item_view(it) for it in items]
-    for view in views:
-        view["short_url"] = await shorten_url(http, view["url"])
 
     footer = _format_footer(usage, cost_usd, model)
 

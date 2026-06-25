@@ -41,7 +41,7 @@ poll 回饋 → seed sources → fetch → persist+dedup → enrich(LLM＋niche�
 | **score** | `scoring/engine` | `final = w_interest × (relevance/100) × (1+velocity) × recency_decay`，寫回 `items.final_score` |
 | **硬門檻過濾** | `pipeline.run` | 排序前先丟掉 ①超過 `CANDIDATE_MAX_AGE_DAYS` 天才抓進來的舊 backlog ②`relevance < MIN_PERSONAL_SCORE` 的低分項目。則數因此隨「真正想看的量」浮動，不湊滿 `TOP_N` |
 | **rank** | `pipeline.select_diverse` | 過門檻的候選**先每類別保底 `min_per_category`、再按分數補名額（受每類別上限約束）**，兼顧冷門主題曝光與避免單一類別洗版 |
-| **deliver** | `delivery/*` + `core/shorten` | 縮短網址（TinyURL）→ 渲染 → **每則各一條 Telegram 訊息、底下掛 👍/👎 inline 按鈕** → 寫 Markdown digest（`data/digests/`）與 **JSON（`data/digests-json/`，供官網讀取，保留原始 url、留一年）**，標記 `delivered` |
+| **deliver** | `delivery/*` | 渲染（Telegram HTML 標題為超連結，指向原始網址）→ **每則各一條 Telegram 訊息、底下掛 👍/👎 inline 按鈕** → 寫 Markdown digest（`data/digests/`）與 **JSON（`data/digests-json/`，供官網讀取，保留原始 url、留一年）**，標記 `delivered` |
 
 時間一律以 **UTC** 儲存，顯示時轉 **Asia/Taipei**（`core/timez`）。
 
@@ -274,7 +274,6 @@ persist+dedup、classify 容錯與 few-shot 範例、多元性挑選、digest �
 ## 已知限制
 
 - **摘要基於標題 + 來源描述**（未抓全文）。對 AI 新專案/HN/PH 已足夠；長文章的深度摘要為後續工作。
-- **縮網址 best-effort**：TinyURL 失敗時顯示原網址（is.gd 已不可用，故改用 TinyURL）。
 - **意見領袖 / X 貼文**未納入（無穩定免費 RSS）；目前以 YouTube RSS / Google News 替代。
 - **GitHub Search 未帶 token 時** rate limit 較低（10 req/min），多個 GitHub 來源可能偶有空結果。
 - SQLite 讀回為 naive datetime，程式已統一視為 UTC 處理。

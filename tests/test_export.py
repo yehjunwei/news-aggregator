@@ -12,7 +12,7 @@ def test_write_json_keeps_original_url_and_prunes(tmp_path, monkeypatch):
 
     views = [{
         "id": 1, "title": "T", "url": "https://example.com/full/path",
-        "short_url": "https://is.gd/x", "metrics": {},
+        "metrics": {},
     }]
     path = pipeline._write_json_file(views, run_dt, "晨間精選", "morning")
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -21,6 +21,5 @@ def test_write_json_keeps_original_url_and_prunes(tmp_path, monkeypatch):
     assert data["slug"] == "morning" and data["count"] == 1
     # 保留原始 url，不輸出縮短網址
     assert data["items"][0]["url"] == "https://example.com/full/path"
-    assert "short_url" not in data["items"][0]
     # 一年前的舊檔被清掉
     assert not old.exists()

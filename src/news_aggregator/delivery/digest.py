@@ -1,6 +1,6 @@
 """每日摘要渲染：Telegram（HTML 區塊）與檔案（Markdown）。
 
-每則包含：標題、來源標注、熱度指標、摘要、why_relevant、（縮短後）網址。
+每則包含：標題（HTML 為超連結）、來源標注、熱度指標、摘要、why_relevant、網址。
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from ..core.timez import now_utc, to_taipei
 
 # item view 為 dict，欄位：
 #   title, title_zh, summary, why_relevant, personal_relevance_score,
-#   source_name, url, short_url, metrics{score,comments,stars}
+#   source_name, url, metrics{score,comments,stars}
 
 
 def _metric_str(metrics: dict) -> str:
@@ -31,7 +31,7 @@ def _title(item: dict) -> str:
 
 
 def _url(item: dict) -> str:
-    return item.get("short_url") or item.get("url") or ""
+    return item.get("url") or ""
 
 
 def _meta_suffix(item: dict) -> str:
@@ -56,12 +56,14 @@ def item_keyboard(item_id: int) -> dict:
 
 
 def render_item_html(item: dict) -> str:
-    lines = [f"<b>{escape(_title(item))}</b>", f"<i>{escape(_meta_suffix(item))}</i>"]
+    url = _url(item)
+    title = escape(_title(item))
+    head = f'<b><a href="{escape(url, quote=True)}">{title}</a></b>' if url else f"<b>{title}</b>"
+    lines = [head, f"<i>{escape(_meta_suffix(item))}</i>"]
     if item.get("summary"):
         lines.append(escape(item["summary"]))
     if item.get("why_relevant"):
         lines.append(f"👉 {escape(item['why_relevant'])}")
-    lines.append(escape(_url(item)))
     return "\n".join(lines)
 
 

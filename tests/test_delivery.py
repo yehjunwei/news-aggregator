@@ -14,31 +14,25 @@ def _item(**kw):
         "personal_relevance_score": 90,
         "source_name": "hackernews-top",
         "url": "https://example.com/very/long/url",
-        "short_url": "https://is.gd/abc",
         "metrics": {"score": 120, "comments": 30},
     }
     base.update(kw)
     return base
 
 
-def test_render_markdown_includes_short_url_and_source():
+def test_render_markdown_includes_url_and_source():
     md = render_markdown([_item()], RUN_DT)
     assert "2026-06-15" in md
-    assert "https://is.gd/abc" in md
+    assert "https://example.com/very/long/url" in md
     assert "hackernews-top" in md
     assert "中文標題" in md
 
 
-def test_render_telegram_escapes_and_uses_short_url():
+def test_render_telegram_title_is_hyperlink_and_escapes():
     header, blocks = render_telegram([_item(title_zh="A < B & C")], RUN_DT)
     assert "每日新聞精選" in header
-    assert "A &lt; B &amp; C" in blocks[0]
-    assert "https://is.gd/abc" in blocks[0]
-
-
-def test_render_falls_back_to_original_url_without_short():
-    md = render_markdown([_item(short_url=None)], RUN_DT)
-    assert "https://example.com/very/long/url" in md
+    # 標題為超連結，連結指向原始網址，標題內容正確跳脫
+    assert '<a href="https://example.com/very/long/url">A &lt; B &amp; C</a>' in blocks[0]
 
 
 def test_item_keyboard_carries_item_id():
