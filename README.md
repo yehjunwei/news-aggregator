@@ -14,12 +14,14 @@
 2. [資料模型](#資料模型)
 3. [安裝與使用](#安裝與使用)
 4. [可調參數（.env）](#可調參數env)
-5. [來源管理](#來源管理)
-6. [評分與多元性機制](#評分與多元性機制)
-7. [排程](#排程)
-8. [測試](#測試)
-9. [已知限制](#已知限制)
-10. [將來可優化方向](#將來可優化方向)
+5. [個人化偏好（profile.json）](#個人化偏好profilejson)
+6. [來源管理](#來源管理)
+7. [評分與多元性機制](#評分與多元性機制)
+8. [排程](#排程)
+9. [測試](#測試)
+10. [TODO](#todo)
+11. [已知限制](#已知限制)
+12. [將來可優化方向](#將來可優化方向)
 
 ---
 
@@ -34,7 +36,7 @@ poll 回饋 → seed sources → fetch → persist+dedup → enrich(LLM＋niche�
 | 階段 | 模組 | 做什麼 |
 |------|------|--------|
 | **poll 回饋** | `feedback.poll_feedback` | 跑批次前先拉 Telegram `getUpdates`，把上次的 👍/👎 按鈕寫進 `items.feedback`（offset 存 `data/tg_offset.txt`） |
-| **seed** | `pipeline.seed_sources` | 把 `config/sources.json` upsert 進 DB `sources`（保留既有 etag/last_modified） |
+| **seed** | `pipeline.build_source_entries` + `seed_sources` | 合併「`config/sources.json`（依 profile 平台開關過濾）＋ `config/profile.json` 展開的個人化來源」upsert 進 DB `sources`（保留既有 etag/last_modified），並**自動停用不在當次定義內的孤兒來源** |
 | **fetch** | `sources/*` + `core/http` | 各來源**並發**抓取，帶 ETag/Last-Modified 條件式請求；retry + per-host rate limit |
 | **persist + dedup** | `pipeline.persist_results` + `core/dedup` | 三層去重：①`(source, external_id)` ②canonical URL / content hash ③標題相似度（rapidfuzz）。新項目寫 `items`；既有項目只追加一筆 `item_metrics`（熱度時序） |
 | **enrich** | `enrich/llm` + `enrich/classify` | 只對「未推送且未加值」項目，**批次**呼叫 LLM 回傳 JSON：category、繁中標題、N 句摘要、why_relevant、**預測點開機率的相關度 0–100**、`technical_nicheness`。當場折算 `relevance −= 0.5 × nicheness`（壓低 niche/玩具型內容），存回 `personal_relevance_score`。並把最近 👍/👎 的標題當 few-shot 範例餵回 prompt。失敗容錯（略過不中斷） |
@@ -110,7 +112,8 @@ uv run alembic revision --autogenerate -m "..."  # 改 models 後產生新版本
 | 參數 | 預設 | 說明 |
 |------|------|------|
 | `GITHUB_TOKEN` | — | 選用，提高 GitHub Search rate limit（10→30 req/min） |
-| `SOURCES_FILE` | `config/sources.json` | 來源清單檔路徑 |
+| `SOURCES_FILE` | `config/sources.json` | 靜態主題來源清單檔路徑 |
+| `PROFILE_FILE` | `config/profile.json` | 個人化偏好檔路徑（people/tickers/topics/platforms，見[個人化偏好](#個人化偏好profilejson)） |
 
 ### Pipeline / 排序 / 評分
 | 參數 | 預設 | 說明 |
@@ -143,9 +146,36 @@ uv run alembic revision --autogenerate -m "..."  # 改 models 後產生新版本
 
 ---
 
+## 個人化偏好（profile.json）
+
+`config/profile.json` 是「你關注什麼」的單一宣告式入口。每次執行會把它**展開成抓取來源**，同時把關注對象**注入 LLM 相關度 prompt**（提到就加分）。實作於 `preferences.py`。
+
+| 欄位 | 展開的抓取來源 | 注入相關度 |
+|------|----------------|------------|
+| `people`（`name` + 選填 `x_handle`） | 有 handle → `x-<handle>` Nitter feed | ✅ 人名 |
+| `tickers`（`symbol` + `name`） | 全部合併成單一 `tickers-news` Google News 查詢 | ✅ symbol＋公司名 |
+| `topics`（字串清單） | 每個 → `topic-<t>` Google News（含 CJK 自動切 `zh-TW`）；`reddit` 開啟時加 `reddit-<t>` 搜尋 | ✅ |
+| `platforms`（`x`/`hackernews`/`github`/`reddit`/`trending`，缺項預設 `true`） | 過濾靜態 `sources.json` 來源＋閘門展開 | — |
+| `trending`（platforms 內開關） | 對每個啟用平台抓「目前熱門」：`hn-trending`(HN top)、`gh-trending`(近 30 天高星)、`reddit-popular`(r/popular)。X 無公開 trending 故略過 | — |
+
+```json
+{
+  "people": [{ "name": "Elon Musk", "x_handle": "elonmusk" }],
+  "tickers": [{ "symbol": "TSLA", "name": "Tesla" }],
+  "topics": ["AI", "電動車", "AI Engineering Management"],
+  "platforms": { "x": true, "hackernews": true, "github": true, "reddit": true, "trending": true }
+}
+```
+
+`pipeline.build_source_entries` 會把「`sources.json`（依 `platforms` 過濾）＋ profile 展開」合併後 seed。
+
+> **單一真實來源**：seed 時自動停用 DB 中**不在當次定義內**的來源——所以從 `profile.json` / `sources.json` 移除項目、或關掉某平台，下次 run 就會停抓，不留孤兒。
+
+---
+
 ## 來源管理
 
-來源清單在 **`config/sources.json`**，每次執行會 upsert 進 DB。新增一筆即多一個來源：
+主題型靜態來源在 **`config/sources.json`**；個人關注對象（名人/股票/主題/熱門）走 [`profile.json`](#個人化偏好profilejson)。兩者每次執行都會 upsert 進 DB。在 `sources.json` 新增一筆即多一個主題來源：
 
 ```json
 { "name": "唯一名稱", "type": "rss", "config": { "url": "feed 網址", "limit": 30 } }
@@ -177,11 +207,11 @@ https://news.google.com/rss/search?q=<URL編碼的查詢>&hl=zh-TW&gl=TW&ceid=TW
 - **自駕 / Robotaxi / 車用**：Mobileye、Waymo、NHTSA 安全調查（皆 Google News `site:`）、車用座艙(Google News)。
 - **產業事實層**：Reuters、Axios、The Information / Bloomberg（皆 Google News `site:` + AI/auto 關鍵字）、Techmeme。
 - **機器人**：IEEE Spectrum Robotics。
-- **人物**：people-ai-leaders（黃仁勳/Hassabis/Amodei/Shashua/Karpathy/Jim Fan 的 Google News 人名查詢）、Elon Musk / Karpathy / Sam Altman / Shams（Nitter，best-effort）。
-- **候選池（只當召回，靠評分篩選）**：HN(top/best)、GitHub(新專案/AI agents)、The Verge、TechCrunch、新服務(Google News)。
+- **人物**：people-ai-leaders（黃仁勳/Hassabis/Amodei/Shashua/Karpathy/Jim Fan 的 Google News 人名查詢）。**個別 X 帳號（Elon Musk / Karpathy / Sam Altman / Shams…）改由 [`profile.json`](#個人化偏好profilejson) 的 `people` 定義、自動展開 Nitter feed。**
+- **候選池（只當召回，靠評分篩選）**：HN best、GitHub AI agents、The Verge、TechCrunch、新服務(Google News)。（HN top、GitHub 近期高星已改由 profile 的 `trending` 自動產生。）
 - **生活 / 休閒**：NBA(Google News + ESPN)、球員卡(reddit + Google News)、技術/創投 YouTube(Lex Fridman / Y Combinator / a16z)、世界盃足球、新書書評、串流新劇(Netflix/Apple TV)。
 
-> 已停用（`enabled:false`）：`rss-hn-frontpage`（與 HN top 重複）、`x-openai`/`x-anthropic`（改用官方 Newsroom）、`producthunt-feed`（多為隨機 SaaS）。
+> 已停用（`enabled:false`）：`rss-hn-frontpage`（與 HN top 重複）、`producthunt-feed`（多為隨機 SaaS）。手寫的 `x-*` Nitter 來源與 `hackernews-top`/`github-new-trending` 已移除，分別改由 profile 的 `people` 與 `trending` 產生。
 > 非 RSS 的官方站（Anthropic/Waymo/Mobileye/NHTSA/NVIDIA）一律用 Google News `site:X.com (關鍵字)` 查詢餵入，**不需另寫 webpage adapter**；個別關鍵字直接寫在查詢字串裡。
 
 ### 新增一個全新「類型」的來源
@@ -271,10 +301,24 @@ persist+dedup、classify 容錯與 few-shot 範例、多元性挑選、digest �
 
 ---
 
+## TODO
+
+近期（已排序，由小到大）：
+
+- [ ] **Reddit 429**：`profile.json` 的 `topics`/`trending` 會展開 Reddit 搜尋與 `r/popular`，但 `reddit.com/*.rss` 常被 rate-limit（HTTP 429）。需加 User-Agent / 退避，或改用 RSSHub 等代理。單一來源失敗已被隔離、不影響整體。
+- [ ] **X(Nitter) 穩定度**：`people` 展開的 `x-<handle>` 依賴 `nitter.net`，公開實例常掛。考慮可設定的 Nitter 實例或替代來源。
+- [ ] **`_INTEREST` 可定義化**：目前 `enrich/classify.py` 的質性興趣描述仍硬編碼；可考慮搬進 `profile.json` 讓使用者完整定義（profile 已負責 people/tickers/topics 的具體清單）。
+- [ ] **來源健康度監控**：連續失敗自動停用 + Telegram 告警。
+
+✅ 已完成：個人化偏好層 `profile.json`（NA-01）、seed 自動停用孤兒來源（NA-02）。
+
+---
+
 ## 已知限制
 
 - **摘要基於標題 + 來源描述**（未抓全文）。對 AI 新專案/HN/PH 已足夠；長文章的深度摘要為後續工作。
-- **意見領袖 / X 貼文**未納入（無穩定免費 RSS）；目前以 YouTube RSS / Google News 替代。
+- **X 貼文**經 `profile.json` 的 `people` 以 Nitter 納入（best-effort，實例不穩，見 TODO）；X 平台層級的「熱門 trending」無公開來源，故 `trending` 不含 X。
+- **Reddit 來源易被 429**（見 TODO）。
 - **GitHub Search 未帶 token 時** rate limit 較低（10 req/min），多個 GitHub 來源可能偶有空結果。
 - SQLite 讀回為 naive datetime，程式已統一視為 UTC 處理。
 
