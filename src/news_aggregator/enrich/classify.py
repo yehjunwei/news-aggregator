@@ -87,9 +87,15 @@ def _examples_block(examples: dict | None) -> str:
     return "\n".join(parts)
 
 
-def _build_user(batch: list[dict], summary_sentences: int, examples: dict | None = None) -> str:
+def _build_user(
+    batch: list[dict],
+    summary_sentences: int,
+    examples: dict | None = None,
+    watchlist: str | None = None,
+) -> str:
     lines = [
         _INTEREST,
+        watchlist or "",
         _examples_block(examples),
         "",
         f"請為以下每則新聞輸出 JSON：{{\"results\": [{{"
@@ -151,6 +157,7 @@ async def classify_items(
     batch_size: int = 8,
     concurrency: int = 4,
     examples: dict | None = None,
+    watchlist: str | None = None,
 ) -> dict[int, dict]:
     """inputs: [{"id", "title", "url", "source", "content"?}] -> {id: enrichment}。"""
     if not inputs:
@@ -164,7 +171,7 @@ async def classify_items(
         async with sem:
             try:
                 out = await provider.complete_json(
-                    SYSTEM, _build_user(batch, summary_sentences, examples)
+                    SYSTEM, _build_user(batch, summary_sentences, examples, watchlist)
                 )
             except (json.JSONDecodeError, KeyError, Exception) as exc:  # noqa: BLE001
                 logger.warning("LLM 批次失敗（%d 則）：%s", len(batch), exc)

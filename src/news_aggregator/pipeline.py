@@ -22,6 +22,7 @@ from .delivery.telegram import TelegramClient
 from .enrich.classify import classify_items
 from .enrich.llm import build_provider, estimate_cost
 from .feedback import feedback_examples, poll_feedback
+from .preferences import Preferences, expand_sources, load_preferences, watchlist_block
 from .profiles import get_profile
 from .scoring.engine import ScoreInput, compute_score
 from .sources.base import SourceState
@@ -33,12 +34,26 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 # sources
 # --------------------------------------------------------------------------- #
-def seed_sources(session, sources_file: Path) -> None:
-    """以 config/sources.json upsert 到 DB（保留既有 etag/last_modified）。"""
-    if not sources_file or not Path(sources_file).exists():
-        logger.warning("找不到 sources 設定檔：%s", sources_file)
-        return
-    entries = json.loads(Path(sources_file).read_text(encoding="utf-8"))
+# type -> 對應的平台開關名稱（未列者沿用 type 本身，缺項預設啟用）
+_TYPE_PLATFORM = {"hackernews": "hackernews", "github_search": "github"}
+
+
+def build_source_entries(settings: Settings, prefs: Preferences) -> list[dict]:
+    """靜態 sources.json（依平台開關過濾）+ 偏好展開來源，合併成 upsert 用 entries。"""
+    static: list[dict] = []
+    if settings.sources_file and Path(settings.sources_file).exists():
+        static = json.loads(Path(settings.sources_file).read_text(encoding="utf-8"))
+    else:
+        logger.warning("找不到 sources 設定檔：%s", settings.sources_file)
+    kept = [
+        e for e in static
+        if prefs.on(_TYPE_PLATFORM.get(e.get("type", ""), e.get("type", "")))
+    ]
+    return kept + expand_sources(prefs)
+
+
+def seed_sources(session, entries: list[dict]) -> None:
+    """以 entries 清單 upsert 到 DB（保留既有 etag/last_modified）。"""
     for entry in entries:
         existing = session.scalars(
             select(Source).where(Source.name == entry["name"])
@@ -192,7 +207,9 @@ def _apply_enrichments(pending, enrichments: dict[int, dict]) -> int:
     return applied
 
 
-async def enrich_pending(session, settings: Settings, http: HttpClient) -> dict:
+async def enrich_pending(
+    session, settings: Settings, http: HttpClient, watchlist: str = ""
+) -> dict:
     empty = {"applied": 0, "usage": {"prompt": 0, "completion": 0, "total": 0}, "model": "", "cost": None}
     pending = list(
         session.scalars(
@@ -213,6 +230,7 @@ async def enrich_pending(session, settings: Settings, http: HttpClient) -> dict:
         summary_sentences=settings.llm_summary_sentences,
         batch_size=settings.llm_batch_size,
         examples=feedback_examples(session),
+        watchlist=watchlist,
     )
     applied = _apply_enrichments(pending, enrichments)
     session.commit()
@@ -486,6 +504,7 @@ async def run(
     profile: str = "all",
 ) -> dict:
     settings = settings or get_settings()
+    prefs = load_preferences(settings.profile_file)
     engine = make_engine(settings.resolved_database_url)
     init_db(engine)
     session_factory = make_session_factory(engine)
@@ -493,7 +512,7 @@ async def run(
     summary = {"new_items": 0, "enriched": 0, "delivered": 0, "tokens": 0, "cost_usd": None, "feedback": 0}
 
     with session_factory() as session:
-        seed_sources(session, settings.sources_file)
+        seed_sources(session, build_source_entries(settings, prefs))
         sources = load_enabled_sources(session)
 
     async with HttpClient(
@@ -509,7 +528,7 @@ async def run(
             logger.info("fetch-only 完成：新增 %d 則", summary["new_items"])
             return summary
         with session_factory() as session:
-            enrich_info = await enrich_pending(session, settings, http)
+            enrich_info = await enrich_pending(session, settings, http, watchlist_block(prefs))
         summary["enriched"] = enrich_info["applied"]
         summary["tokens"] = enrich_info["usage"]["total"]
         summary["cost_usd"] = enrich_info["cost"]

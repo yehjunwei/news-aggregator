@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     # --- Sources ---
     github_token: str = ""
     sources_file: Path = CONFIG_DIR / "sources.json"
+    profile_file: Path = CONFIG_DIR / "profile.json"
 
     # --- pipeline / scoring ---
     top_n: int = 20  # 每日推送的「上限」；低於門檻時不會湊滿
