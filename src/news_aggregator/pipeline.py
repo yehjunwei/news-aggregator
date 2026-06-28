@@ -72,6 +72,11 @@ def seed_sources(session, entries: list[dict]) -> None:
                     enabled=entry.get("enabled", True),
                 )
             )
+    # 停用不在當次 entries 內的孤兒來源，使 DB 與檔案 + profile 定義對齊
+    keep = {entry["name"] for entry in entries}
+    for src in session.scalars(select(Source).where(Source.enabled.is_(True))).all():
+        if src.name not in keep:
+            src.enabled = False
     session.commit()
 
 

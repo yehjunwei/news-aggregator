@@ -1,9 +1,17 @@
 from datetime import timedelta
 
+from sqlalchemy import select
+
 from news_aggregator.config import Settings
 from news_aggregator.core.timez import now_utc
 from news_aggregator.db.models import Item, ItemMetric, Source
-from news_aggregator.pipeline import persist_results, score_undelivered, top_undelivered
+from news_aggregator.pipeline import (
+    load_enabled_sources,
+    persist_results,
+    score_undelivered,
+    seed_sources,
+    top_undelivered,
+)
 from news_aggregator.sources.base import FetchResult, RawItem
 
 
@@ -20,6 +28,29 @@ def _raw(source_name, ext, title, url, score=100):
         published_at=now_utc() - timedelta(hours=1),
         metrics={"score": score, "comments": 1, "views": None, "stars": None},
     )
+
+
+def _entry(name, enabled=None):
+    e = {"name": name, "type": "rss", "config": {}}
+    if enabled is not None:
+        e["enabled"] = enabled
+    return e
+
+
+def test_seed_disables_absent_sources(session):
+    seed_sources(session, [_entry("a"), _entry("b")])
+    assert {s.name for s in load_enabled_sources(session)} == {"a", "b"}
+    # 再 seed 只含 a → b 被停用、a 仍啟用
+    seed_sources(session, [_entry("a")])
+    assert {s.name for s in load_enabled_sources(session)} == {"a"}
+
+
+def test_seed_entry_enabled_false_not_treated_as_orphan(session):
+    seed_sources(session, [_entry("a"), _entry("c", enabled=False)])
+    # 再 seed 同樣兩筆：c 維持停用、a 維持啟用，c 不因不在 enabled 而被重複處理
+    seed_sources(session, [_entry("a"), _entry("c", enabled=False)])
+    states = {s.name: s.enabled for s in session.scalars(select(Source)).all()}
+    assert states["a"] is True and states["c"] is False
 
 
 def test_persist_creates_new_and_dedups_repeat(session):
