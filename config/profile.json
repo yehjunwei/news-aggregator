@@ -1,0 +1,23 @@
+{
+  "people": [
+    { "name": "Elon Musk", "x_handle": "elonmusk" },
+    { "name": "Andrej Karpathy", "x_handle": "karpathy" },
+    { "name": "Sam Altman", "x_handle": "sama" },
+    { "name": "Shams Charania", "x_handle": "ShamsCharania" }
+  ],
+  "tickers": [
+    { "symbol": "TSLA", "name": "Tesla" },
+    { "symbol": "AAPL", "name": "Apple" },
+    { "symbol": "META", "name": "Meta" },
+    { "symbol": "NVDA", "name": "NVIDIA" },
+    { "symbol": "TSM", "name": "TSMC" }
+  ],
+  "topics": ["AI", "電動車", "AI Engineering Management"],
+  "platforms": {
+    "x": true,
+    "hackernews": true,
+    "github": true,
+    "reddit": true,
+    "trending": true
+  }
+}

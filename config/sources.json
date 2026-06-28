@@ -1,18 +1,8 @@
 [
   {
-    "name": "hackernews-top",
-    "type": "hackernews",
-    "config": { "story_type": "top", "limit": 20, "min_score": 80 }
-  },
-  {
     "name": "hackernews-best",
     "type": "hackernews",
     "config": { "story_type": "best", "limit": 15, "min_score": 50 }
-  },
-  {
-    "name": "github-new-trending",
-    "type": "github_search",
-    "config": { "created_within_days": 30, "min_stars": 1500, "sort": "stars", "limit": 10 }
   },
   {
     "name": "github-ai-agents",
@@ -141,13 +131,5 @@
     "name": "rss-techcrunch",
     "type": "rss",
     "config": { "url": "https://techcrunch.com/feed/", "limit": 5 }
-  },
-
-  { "name": "x-elonmusk",       "type": "rss", "config": { "url": "https://nitter.net/elonmusk/rss",       "limit": 10 } },
-  { "name": "x-karpathy",       "type": "rss", "config": { "url": "https://nitter.net/karpathy/rss",       "limit": 10 } },
-  { "name": "x-anthropic",      "type": "rss", "enabled": false, "comment": "停用：改用 ai-anthropic-news 官方 Newsroom", "config": { "url": "https://nitter.net/AnthropicAI/rss",    "limit": 5 } },
-  { "name": "x-openai",         "type": "rss", "enabled": false, "comment": "停用：改用 ai-openai-news 官方 Newsroom",    "config": { "url": "https://nitter.net/OpenAI/rss",         "limit": 5 } },
-  { "name": "x-sama",           "type": "rss", "config": { "url": "https://nitter.net/sama/rss",           "limit": 10 } },
-  { "name": "x-shams",          "type": "rss", "config": { "url": "https://nitter.net/ShamsCharania/rss",  "limit": 5 } },
-  { "name": "x-nba",            "type": "rss", "config": { "url": "https://nitter.net/NBA/rss",            "limit": 10 } }
+  }
 ]

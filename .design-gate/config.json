@@ -1,0 +1,22 @@
+{
+  "max_function_lines": 40,
+  "function_length_mode": "warn",
+  "allowed_before_approval": [
+    "docs/designs/",
+    ".design-gate/"
+  ],
+  "ignored_paths": [
+    ".git/",
+    ".design-gate/",
+    "docs/designs/",
+    "node_modules/",
+    "vendor/",
+    "dist/",
+    "build/",
+    "target/",
+    "coverage/",
+    "generated/",
+    ".venv/",
+    "venv/"
+  ]
+}
