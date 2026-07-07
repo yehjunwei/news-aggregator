@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     timezone: str = "Asia/Taipei"
 
     # openclaw 金鑰檔（不存在時略過）
-    credentials_file: Path = Path("/home/tony/.openclaw/credentials/api_keys.json")
+    credentials_file: Path = Path("~/.openclaw/credentials/api_keys.json")
 
     @property
     def resolved_database_url(self) -> str:
@@ -79,8 +79,8 @@ class Settings(BaseSettings):
 
 def _merge_credentials(settings: Settings) -> Settings:
     """以 credentials/api_keys.json 補齊環境變數未提供的金鑰。"""
-    path = settings.credentials_file
-    if not path or not Path(path).exists():
+    path = Path(settings.credentials_file).expanduser()
+    if not path.exists():
         return settings
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
