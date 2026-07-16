@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -173,8 +172,12 @@ async def classify_items(
                 out = await provider.complete_json(
                     SYSTEM, _build_user(batch, summary_sentences, examples, watchlist)
                 )
-            except (json.JSONDecodeError, KeyError, Exception) as exc:  # noqa: BLE001
-                logger.warning("LLM 批次失敗（%d 則）：%s", len(batch), exc)
+            except Exception as exc:  # noqa: BLE001
+                # 只印例外類名與 HTTP 狀態碼，不印含 URL 的完整訊息
+                status = getattr(getattr(exc, "response", None), "status_code", "")
+                logger.warning(
+                    "LLM 批次失敗（%d 則）：%s %s", len(batch), type(exc).__name__, status
+                )
                 return
             for raw in out.get("results", []) or []:
                 coerced = _coerce_result(raw)

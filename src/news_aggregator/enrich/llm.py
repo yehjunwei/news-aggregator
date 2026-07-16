@@ -81,7 +81,8 @@ class GeminiProvider:
         }
         client = self._client or httpx.AsyncClient(timeout=60)
         try:
-            resp = await client.post(url, params={"key": self.api_key}, json=payload)
+            # key 走 header，避免出現在 URL / 例外訊息 / log
+            resp = await client.post(url, headers={"x-goog-api-key": self.api_key}, json=payload)
             resp.raise_for_status()
             data = resp.json()
             meta = data.get("usageMetadata") or {}

@@ -1,3 +1,7 @@
+import logging
+
+import httpx
+
 from news_aggregator.enrich.classify import _examples_block, classify_items
 
 
@@ -73,6 +77,25 @@ def test_examples_block_lists_liked_and_disliked():
 
 async def test_classify_empty_inputs():
     assert await classify_items(FakeProvider({}), []) == {}
+
+
+async def test_classify_failure_log_omits_url_and_key(caplog):
+    class FailingProvider:
+        async def complete_json(self, system, user):
+            req = httpx.Request("POST", "https://x/gen?key=SECRET-KEY")
+            raise httpx.HTTPStatusError(
+                "Server error '503' for url 'https://x/gen?key=SECRET-KEY'",
+                request=req,
+                response=httpx.Response(503, request=req),
+            )
+
+    with caplog.at_level(logging.WARNING):
+        out = await classify_items(
+            FailingProvider(), [{"id": 1, "title": "t", "url": "u", "source": "x"}]
+        )
+    assert out == {}
+    assert "SECRET-KEY" not in caplog.text
+    assert "503" in caplog.text
 
 
 async def test_classify_batches():
