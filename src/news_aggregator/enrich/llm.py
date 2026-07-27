@@ -57,11 +57,18 @@ def _extract_json(text: str) -> dict:
         text = text.strip("`")
         text = text.split("\n", 1)[1] if "\n" in text else text
     try:
-        return json.loads(text)
+        # strict=False：容忍字串內未跳脫的控制字元（模型偶爾在中文摘要輸出原始換行）
+        return json.loads(text, strict=False)
     except json.JSONDecodeError:
-        start, end = text.find("{"), text.rfind("}")
-        if 0 <= start < end:
-            return json.loads(text[start : end + 1])
+        pass
+    start, end = text.find("{"), text.rfind("}")
+    try:
+        if not (0 <= start < end):
+            raise json.JSONDecodeError("no JSON object found", text, 0)
+        return json.loads(text[start : end + 1], strict=False)
+    except json.JSONDecodeError as exc:
+        # 留下診斷線索：錯誤位置 + 輸出尾端（截斷最常發生在尾端）；模型輸出不含金鑰
+        logger.warning("LLM 輸出非合法 JSON：%s；tail=%r", exc, text[-200:])
         raise
 
 

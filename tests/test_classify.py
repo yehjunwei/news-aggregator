@@ -1,3 +1,4 @@
+import json
 import logging
 
 import httpx
@@ -79,9 +80,15 @@ async def test_classify_empty_inputs():
     assert await classify_items(FakeProvider({}), []) == {}
 
 
-async def test_classify_failure_log_omits_url_and_key(caplog):
+async def test_classify_failure_log_omits_url_and_key(caplog, monkeypatch):
+    monkeypatch.setattr("news_aggregator.enrich.classify._RETRY_DELAY", 0)
+
     class FailingProvider:
+        def __init__(self):
+            self.calls = 0
+
         async def complete_json(self, system, user):
+            self.calls += 1
             req = httpx.Request("POST", "https://x/gen?key=SECRET-KEY")
             raise httpx.HTTPStatusError(
                 "Server error '503' for url 'https://x/gen?key=SECRET-KEY'",
@@ -89,13 +96,35 @@ async def test_classify_failure_log_omits_url_and_key(caplog):
                 response=httpx.Response(503, request=req),
             )
 
+    provider = FailingProvider()
     with caplog.at_level(logging.WARNING):
         out = await classify_items(
-            FailingProvider(), [{"id": 1, "title": "t", "url": "u", "source": "x"}]
+            provider, [{"id": 1, "title": "t", "url": "u", "source": "x"}]
         )
     assert out == {}
+    assert provider.calls == 2  # 失敗後重試一次
     assert "SECRET-KEY" not in caplog.text
     assert "503" in caplog.text
+
+
+async def test_classify_retry_succeeds_on_second_attempt(monkeypatch):
+    monkeypatch.setattr("news_aggregator.enrich.classify._RETRY_DELAY", 0)
+
+    class FlakyProvider:
+        def __init__(self):
+            self.calls = 0
+
+        async def complete_json(self, system, user):
+            self.calls += 1
+            if self.calls == 1:
+                raise json.JSONDecodeError("bad", "", 0)
+            return {"results": [{"id": 1, "category": "ai_agents",
+                                 "personal_relevance_score": 80}]}
+
+    provider = FlakyProvider()
+    out = await classify_items(provider, [{"id": 1, "title": "t", "url": "u", "source": "x"}])
+    assert provider.calls == 2
+    assert out[1]["personal_relevance_score"] == 80
 
 
 async def test_classify_batches():

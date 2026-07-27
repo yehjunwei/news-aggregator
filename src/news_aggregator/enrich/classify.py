@@ -36,6 +36,9 @@ CATEGORIES = [
 # 折算技術 niche 懲罰的係數：net = relevance - NICHE_PENALTY * technical_nicheness（0-100 後裁切）
 NICHE_PENALTY = 0.5
 
+# 批次失敗（含模型偶發輸出壞 JSON）重試前的等待秒數
+_RETRY_DELAY = 2.0
+
 SYSTEM = (
     "你是高度個人化的新聞排序器。你的任務不是判斷文章是否與使用者的廣泛興趣「有關」，"
     "而是預測使用者是否真的會點開並花至少 2 分鐘閱讀。"
@@ -168,17 +171,22 @@ async def classify_items(
 
     async def _run(batch):
         async with sem:
-            try:
-                out = await provider.complete_json(
-                    SYSTEM, _build_user(batch, summary_sentences, examples, watchlist)
-                )
-            except Exception as exc:  # noqa: BLE001
-                # 只印例外類名與 HTTP 狀態碼，不印含 URL 的完整訊息
-                status = getattr(getattr(exc, "response", None), "status_code", "")
-                logger.warning(
-                    "LLM 批次失敗（%d 則）：%s %s", len(batch), type(exc).__name__, status
-                )
-                return
+            for attempt in (1, 2):
+                try:
+                    out = await provider.complete_json(
+                        SYSTEM, _build_user(batch, summary_sentences, examples, watchlist)
+                    )
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    # 只印例外類名與 HTTP 狀態碼，不印含 URL 的完整訊息
+                    status = getattr(getattr(exc, "response", None), "status_code", "")
+                    logger.warning(
+                        "LLM 批次失敗（%d 則，第 %d 次）：%s %s",
+                        len(batch), attempt, type(exc).__name__, status,
+                    )
+                    if attempt == 2:
+                        return
+                    await asyncio.sleep(_RETRY_DELAY)
             for raw in out.get("results", []) or []:
                 coerced = _coerce_result(raw)
                 if coerced:
