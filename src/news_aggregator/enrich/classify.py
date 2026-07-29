@@ -39,6 +39,36 @@ NICHE_PENALTY = 0.5
 # 批次失敗（含模型偶發輸出壞 JSON）重試前的等待秒數
 _RETRY_DELAY = 2.0
 
+_RESULT_FIELDS = [
+    "id", "category", "title_zh", "summary",
+    "why_relevant", "personal_relevance_score", "technical_nicheness",
+]
+
+# Gemini responseSchema（OpenAPI 3.0 子集）：約束解碼，從結構上保證合法 JSON 與合法 category
+RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "results": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "id": {"type": "INTEGER"},
+                    "category": {"type": "STRING", "enum": CATEGORIES},
+                    "title_zh": {"type": "STRING"},
+                    "summary": {"type": "STRING"},
+                    "why_relevant": {"type": "STRING"},
+                    "personal_relevance_score": {"type": "INTEGER"},
+                    "technical_nicheness": {"type": "INTEGER"},
+                },
+                "required": _RESULT_FIELDS,
+                "propertyOrdering": _RESULT_FIELDS,
+            },
+        }
+    },
+    "required": ["results"],
+}
+
 SYSTEM = (
     "你是高度個人化的新聞排序器。你的任務不是判斷文章是否與使用者的廣泛興趣「有關」，"
     "而是預測使用者是否真的會點開並花至少 2 分鐘閱讀。"
@@ -174,7 +204,9 @@ async def classify_items(
             for attempt in (1, 2):
                 try:
                     out = await provider.complete_json(
-                        SYSTEM, _build_user(batch, summary_sentences, examples, watchlist)
+                        SYSTEM,
+                        _build_user(batch, summary_sentences, examples, watchlist),
+                        schema=RESPONSE_SCHEMA,
                     )
                     break
                 except Exception as exc:  # noqa: BLE001

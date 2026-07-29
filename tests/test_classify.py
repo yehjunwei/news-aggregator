@@ -3,16 +3,18 @@ import logging
 
 import httpx
 
-from news_aggregator.enrich.classify import _examples_block, classify_items
+from news_aggregator.enrich.classify import RESPONSE_SCHEMA, _examples_block, classify_items
 
 
 class FakeProvider:
     def __init__(self, payload):
         self.payload = payload
         self.calls = 0
+        self.schema = None
 
-    async def complete_json(self, system, user):
+    async def complete_json(self, system, user, schema=None):
         self.calls += 1
+        self.schema = schema
         return self.payload
 
 
@@ -35,6 +37,7 @@ async def test_classify_maps_results_by_id():
     out = await classify_items(provider, inputs)
     assert out[5]["category"] == "ai_agents"
     assert out[5]["personal_relevance_score"] == 88
+    assert provider.schema is RESPONSE_SCHEMA  # 約束解碼 schema 有傳給 provider
 
 
 async def test_classify_coerces_bad_category_and_score():
@@ -87,7 +90,7 @@ async def test_classify_failure_log_omits_url_and_key(caplog, monkeypatch):
         def __init__(self):
             self.calls = 0
 
-        async def complete_json(self, system, user):
+        async def complete_json(self, system, user, schema=None):
             self.calls += 1
             req = httpx.Request("POST", "https://x/gen?key=SECRET-KEY")
             raise httpx.HTTPStatusError(
@@ -114,7 +117,7 @@ async def test_classify_retry_succeeds_on_second_attempt(monkeypatch):
         def __init__(self):
             self.calls = 0
 
-        async def complete_json(self, system, user):
+        async def complete_json(self, system, user, schema=None):
             self.calls += 1
             if self.calls == 1:
                 raise json.JSONDecodeError("bad", "", 0)

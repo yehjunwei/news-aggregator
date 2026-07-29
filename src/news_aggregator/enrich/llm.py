@@ -8,13 +8,20 @@ from typing import Protocol
 
 import httpx
 
+from news_aggregator.config import DATA_DIR
+
 logger = logging.getLogger(__name__)
+
+# 解析失敗的完整模型輸出存這裡（保留最後一次），供診斷壞 JSON 的實際內容
+BAD_OUTPUT_FILE = DATA_DIR / "llm_bad_output.txt"
 
 
 class LLMProvider(Protocol):
     model: str
     usage: dict
-    async def complete_json(self, system: str, user: str) -> dict: ...
+    async def complete_json(
+        self, system: str, user: str, schema: dict | None = None
+    ) -> dict: ...
 
 
 # 約略單價（USD / 1M tokens）：(input, output)。可依官方價目調整。
@@ -67,9 +74,22 @@ def _extract_json(text: str) -> dict:
             raise json.JSONDecodeError("no JSON object found", text, 0)
         return json.loads(text[start : end + 1], strict=False)
     except json.JSONDecodeError as exc:
-        # 留下診斷線索：錯誤位置 + 輸出尾端（截斷最常發生在尾端）；模型輸出不含金鑰
-        logger.warning("LLM 輸出非合法 JSON：%s；tail=%r", exc, text[-200:])
+        # 留下診斷線索：錯誤位置前後文 + 全文存檔；模型輸出不含金鑰
+        ctx = text[max(0, exc.pos - 80) : exc.pos + 80]
+        logger.warning(
+            "LLM 輸出非合法 JSON：%s；ctx=%r；全文已存 %s",
+            exc, ctx, _dump_bad_output(text) or "（寫檔失敗）",
+        )
         raise
+
+
+def _dump_bad_output(text: str):
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        BAD_OUTPUT_FILE.write_text(text, encoding="utf-8")
+        return BAD_OUTPUT_FILE
+    except OSError:
+        return None
 
 
 class GeminiProvider:
@@ -79,12 +99,16 @@ class GeminiProvider:
         self._client = client
         self.usage = _empty_usage()
 
-    async def complete_json(self, system: str, user: str) -> dict:
+    async def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        gen_config: dict = {"temperature": 0.2, "responseMimeType": "application/json"}
+        if schema:
+            # 約束解碼：從結構上保證輸出為合法 JSON 且符合 schema
+            gen_config["responseSchema"] = schema
         payload = {
             "system_instruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
-            "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
+            "generationConfig": gen_config,
         }
         client = self._client or httpx.AsyncClient(timeout=60)
         try:
@@ -110,7 +134,8 @@ class OpenAIProvider:
         self._client = client
         self.usage = _empty_usage()
 
-    async def complete_json(self, system: str, user: str) -> dict:
+    async def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
+        # schema 僅 Gemini 使用；OpenAI 維持 json_object 模式
         url = "https://api.openai.com/v1/chat/completions"
         payload = {
             "model": self.model,
@@ -146,7 +171,7 @@ class NullProvider:
     def __init__(self):
         self.usage = _empty_usage()
 
-    async def complete_json(self, system: str, user: str) -> dict:
+    async def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
         return {}
 
 
