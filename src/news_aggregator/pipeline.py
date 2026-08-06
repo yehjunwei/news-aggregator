@@ -20,6 +20,7 @@ from .db.session import init_db, make_engine, make_session_factory
 from .delivery.digest import item_keyboard, render_markdown, render_telegram
 from .delivery.telegram import TelegramClient
 from .enrich.classify import classify_items
+from .enrich.cluster import MAX_CANDIDATES, MAX_DELIVERED, group_same_event
 from .enrich.llm import build_provider, estimate_cost
 from .feedback import feedback_examples, poll_feedback
 from .preferences import Preferences, expand_sources, load_preferences, watchlist_block
@@ -323,6 +324,54 @@ def select_diverse(
     return selected[:top_n]
 
 
+def _recent_delivered(session, settings: Settings) -> list[Item]:
+    """近 candidate_max_age_days 天已推送的項目（新到舊，最多 MAX_DELIVERED 則）。"""
+    cutoff = now_utc() - timedelta(days=settings.candidate_max_age_days)
+    return list(
+        session.scalars(
+            select(Item)
+            .where(Item.delivered.is_(True), Item.delivered_at >= cutoff)
+            .order_by(Item.delivered_at.desc())
+            .limit(MAX_DELIVERED)
+        ).all()
+    )
+
+
+def _event_title(item: Item) -> str:
+    return item.title_zh or item.title or ""
+
+
+async def drop_duplicate_events(session, settings, provider, candidates: list[Item]) -> list[Item]:
+    """同事件只留分數最高的一則；與近期已推送的同事件者，整組候選丟棄。
+
+    candidates 需已按 final_score 降序；回傳保持同順序。
+    """
+    head, tail = candidates[:MAX_CANDIDATES], candidates[MAX_CANDIDATES:]
+    if tail:
+        logger.info("候選 %d 則超過 %d，後 %d 則不進同事件比對",
+                    len(candidates), MAX_CANDIDATES, len(tail))
+    delivered = _recent_delivered(session, settings)
+    entries = [{"id": i.id, "title": _event_title(i)} for i in head + delivered]
+    groups = await group_same_event(provider, entries)
+    if not groups:
+        return candidates
+
+    by_id = {i.id: i for i in head}
+    dropped: set[int] = set()
+    for ids in groups:
+        cand_ids = [i for i in ids if i in by_id]
+        if not cand_ids:
+            continue
+        if len(cand_ids) < len(ids):  # 組內有已推送過的 → 這組候選全丟
+            dropped.update(cand_ids)
+        else:
+            keep = max(cand_ids, key=lambda i: by_id[i].final_score or 0.0)
+            dropped.update(i for i in cand_ids if i != keep)
+    if dropped:
+        logger.info("同事件去重丟棄 %d 則", len(dropped))
+    return [c for c in head if c.id not in dropped] + tail
+
+
 def _item_view(item: Item) -> dict:
     latest = max(item.metrics, key=lambda m: m.captured_at) if item.metrics else None
     metrics = (
@@ -481,18 +530,32 @@ def _persist_stage(session_factory, results, settings: Settings) -> int:
         return persist_results(session, rebound, settings)
 
 
+def _merge_usage(enrich_info: dict, provider) -> None:
+    """把去重呼叫的 tokens 併進推播結尾的用量統計。"""
+    usage = getattr(provider, "usage", None) or {}
+    for key in ("prompt", "completion", "total"):
+        enrich_info["usage"][key] = enrich_info["usage"].get(key, 0) + usage.get(key, 0)
+    enrich_info["model"] = enrich_info["model"] or getattr(provider, "model", "")
+    enrich_info["cost"] = estimate_cost(enrich_info["model"], enrich_info["usage"])
+
+
 async def _deliver_stage(session_factory, settings, http, profile, enrich_info, dry_run) -> int:
     with session_factory() as session:
         score_undelivered(session, settings)
         prof = get_profile(profile)
+        provider = build_provider(settings, client=http.raw)
+        candidates = await drop_duplicate_events(
+            session, settings, provider, _select_candidates(session, settings, prof)
+        )
         top = select_diverse(
-            _select_candidates(session, settings, prof),
+            candidates,
             prof["top_n"] or settings.top_n, settings.max_per_category,
             min_per_category=prof.get("min_per_category", 0),
         )
         if not top:
             logger.info("沒有可推送的項目（profile=%s）", profile)
             return 0
+        _merge_usage(enrich_info, provider)
         await deliver(
             session, settings, http, top, dry_run=dry_run, title=prof["label"],
             slug=(profile if profile != "all" else ""),
