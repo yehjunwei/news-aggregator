@@ -77,6 +77,7 @@ uv run python -m news_aggregator.cli run        # 完整流程並推送 Telegram
 uv run python -m news_aggregator.cli dry-run    # 完整流程但不推送（仍寫 digest 檔）
 uv run python -m news_aggregator.cli fetch       # 只抓取 + 去重（不 enrich / 不推送，省 LLM 成本）
 uv run python -m news_aggregator.cli init-db     # 僅建表
+uv run python -m news_aggregator.cli feedback "fb:<item_id>:up|down"  # 記錄單筆 👍/👎 回饋
 ```
 
 Migration：
@@ -249,6 +250,7 @@ final = w_interest × (relevance / 100) × (1 + velocity_boost) × recency_decay
 每則推送底下有 **👍 想看更多 / 👎 不感興趣** 兩顆按鈕（Telegram inline keyboard，私聊收 reaction 不可靠，故用 callback）。
 
 - 點按 → 下次批次開跑時 `feedback.poll_feedback` 以 `getUpdates` 收回，寫進 `items.feedback`（+1/−1）。`callback_data` 直接帶 item id，免對應表；offset 存 `data/tg_offset.txt` 避免重複處理。
+- **實務上 openclaw gateway 佔用同一個 bot token 的 long-poll**，callback 會被 gateway 搶走並以純文字 `fb:<id>:up|down` 轉給 Telegram agent。SOUL.md 已規定 agent 收到此格式時執行 `cli feedback "<原文>"` 補記錄（主要路徑）；`poll_feedback` 保留當 gateway 停用時的備援。
 - enrich 時，`feedback.feedback_examples` 撈最近讚/倒讚的標題，當 **few-shot 範例**塞進排序 prompt，讓 LLM 自己歸納偏好。**不訓練模型、不用 embedding、不用權重表**——回饋愈多，命中率愈高。
 - 設計取捨：來源/類別只負責召回，**per-item 相關度是唯一閘門**，不另設來源或類別配額。
 

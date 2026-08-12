@@ -33,7 +33,7 @@
   { "name": "premium-tech-business", "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=%28site%3Atheinformation.com%20OR%20site%3Abloomberg.com%29%20%28AI%20OR%20robotics%20OR%20autonomous%20OR%20Tesla%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
 
   { "name": "robotics-ieee-spectrum", "type": "rss", "config": { "url": "https://spectrum.ieee.org/feeds/topic/robotics.rss", "limit": 10 } },
-  { "name": "tech-techmeme",          "type": "rss", "config": { "url": "https://www.techmeme.com/feed.xml", "limit": 20 } },
+  { "name": "tech-techmeme",          "type": "rss", "config": { "url": "https://www.techmeme.com/feed.xml", "limit": 20, "extract_source_link": true } },
   { "name": "people-ai-leaders",      "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=%28%22Jensen%20Huang%22%20OR%20%22Dario%20Amodei%22%20OR%20%22Demis%20Hassabis%22%20OR%20%22Amnon%20Shashua%22%20OR%20%22Andrej%20Karpathy%22%20OR%20%22Jim%20Fan%22%29&hl=en-US&gl=US&ceid=US:en", "limit": 15 } },
 
   {

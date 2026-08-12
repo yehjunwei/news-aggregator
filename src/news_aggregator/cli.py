@@ -5,6 +5,7 @@
   python -m news_aggregator.cli dry-run    # 完整流程但不推送（仍寫 digest 檔）
   python -m news_aggregator.cli fetch       # 只抓取 + 去重，不 enrich/推送
   python -m news_aggregator.cli init-db     # 僅建表
+  python -m news_aggregator.cli feedback fb:<item_id>:up|down   # 記錄單筆 👍/👎 回饋
 """
 
 from __future__ import annotations
@@ -52,7 +53,12 @@ def main() -> None:
         "command",
         nargs="?",
         default="run",
-        choices=["run", "dry-run", "fetch", "init-db"],
+        choices=["run", "dry-run", "fetch", "init-db", "feedback"],
+    )
+    parser.add_argument(
+        "data",
+        nargs="?",
+        help="feedback 專用：按鈕 callback data，如 fb:123:up",
     )
     parser.add_argument(
         "--profile",
@@ -69,6 +75,18 @@ def main() -> None:
     if args.command == "init-db":
         init_db(make_engine(settings.resolved_database_url))
         print("DB 已初始化：", settings.resolved_database_url)
+        return
+
+    if args.command == "feedback":
+        # gateway 會把按鈕 callback 當文字訊息轉給 agent，由 agent 呼叫這裡補記錄
+        from .db.session import make_session_factory
+        from .feedback import record_feedback
+
+        with make_session_factory(make_engine(settings.resolved_database_url))() as session:
+            try:
+                print(record_feedback(session, args.data or ""))
+            except (ValueError, LookupError) as exc:
+                raise SystemExit(f"❌ {exc}")
         return
 
     result = asyncio.run(

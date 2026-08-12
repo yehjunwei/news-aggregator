@@ -3,7 +3,13 @@ import logging
 
 import httpx
 
-from news_aggregator.enrich.classify import RESPONSE_SCHEMA, _examples_block, classify_items
+from news_aggregator.enrich.classify import (
+    RESPONSE_SCHEMA,
+    _build_user,
+    _content_thin,
+    _examples_block,
+    classify_items,
+)
 
 
 class FakeProvider:
@@ -66,6 +72,45 @@ async def test_classify_no_niche_keeps_score():
     )
     out = await classify_items(provider, [{"id": 1, "title": "t", "url": "u", "source": "x"}])
     assert out[1]["personal_relevance_score"] == 90
+
+
+async def test_thin_content_summary_forced_none():
+    # 無 content：模型硬寫的摘要也要被丟掉
+    provider = FakeProvider(
+        {"results": [{"id": 1, "category": "ai_agents", "title_zh": "中文",
+                      "summary": "幻想出來的摘要", "personal_relevance_score": 80}]}
+    )
+    out = await classify_items(provider, [{"id": 1, "title": "t", "url": "u", "source": "x"}])
+    assert out[1]["summary"] is None
+    assert out[1]["title_zh"] == "中文"  # 其他欄位不受影響
+
+
+async def test_rich_content_summary_kept():
+    content = "標題本文" + "真實摘錄" * 40  # 遠超過標題+80 字元
+    provider = FakeProvider(
+        {"results": [{"id": 1, "category": "ai_agents",
+                      "summary": "有依據的摘要", "personal_relevance_score": 80}]}
+    )
+    out = await classify_items(
+        provider, [{"id": 1, "title": "標題本文", "url": "u", "source": "x", "content": content}]
+    )
+    assert out[1]["summary"] == "有依據的摘要"
+
+
+def test_build_user_marks_thin_entries():
+    thin = {"id": 1, "title": "只有標題", "source": "gnews"}
+    rich = {"id": 2, "title": "T", "source": "tm", "content": "T " + "摘錄內容" * 30}
+    user = _build_user([thin, rich], summary_sentences=3)
+    assert "內容不足，summary 留空" in user
+    assert "（內容：T 摘錄內容" in user
+
+
+def test_content_thin_boundary():
+    title = "標題"
+    assert _content_thin({"title": title, "content": title + "x" * 79})
+    assert not _content_thin({"title": title, "content": title + "x" * 80})
+    assert _content_thin({"title": title})          # 無 content
+    assert _content_thin({"title": title, "content": None})
 
 
 def test_examples_block_empty_when_no_feedback():

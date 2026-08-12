@@ -39,6 +39,15 @@ NICHE_PENALTY = 0.5
 # 批次失敗（含模型偶發輸出壞 JSON）重試前的等待秒數
 _RETRY_DELAY = 2.0
 
+# content 扣掉標題後至少要有的字元數；不足＝只有標題可依據，不生成摘要以免幻想
+_MIN_EXTRA_CONTENT = 80
+
+
+def _content_thin(entry: dict) -> bool:
+    """content 缺失或幾乎只是標題重複（如 Google News 只給標題+來源名）時為 True。"""
+    content = entry.get("content") or ""
+    return len(content) - len(entry.get("title") or "") < _MIN_EXTRA_CONTENT
+
 _RESULT_FIELDS = [
     "id", "category", "title_zh", "summary",
     "why_relevant", "personal_relevance_score", "technical_nicheness",
@@ -132,7 +141,8 @@ def _build_user(
         "",
         f"請為以下每則新聞輸出 JSON：{{\"results\": [{{"
         f"\"id\": <int>, \"category\": <下列其一>, \"title_zh\": <繁中標題>, "
-        f"\"summary\": <{summary_sentences} 句繁中摘要>, "
+        f"\"summary\": <{summary_sentences} 句繁中摘要；僅能改寫標題與（內容）中出現的資訊，"
+        f"禁止推測或補充未提供的細節；標注「內容不足」的條目此欄留空字串>, "
         f"\"why_relevant\": <一句話，指出新聞與使用者工作/產品/投資/生活的「具體」關係；"
         f"禁止使用「符合使用者對某領域的興趣」這類泛化句型>, "
         f"\"personal_relevance_score\": <0-100 整數，預測點開並閱讀的機率>, "
@@ -142,7 +152,10 @@ def _build_user(
         "新聞清單：",
     ]
     for entry in batch:
-        ctx = f"（內容：{entry['content'][:300]}）" if entry.get("content") else ""
+        if _content_thin(entry):
+            ctx = "（內容不足，summary 留空）"
+        else:
+            ctx = f"（內容：{entry['content'][:300]}）"
         lines.append(
             f"- id={entry['id']} 來源={entry.get('source', '')} 標題={entry['title']} {ctx}"
         )
@@ -225,4 +238,8 @@ async def classify_items(
                     results[coerced["id"]] = coerced
 
     await asyncio.gather(*[_run(b) for b in batches])
+    # 程式碼層防線：內容不足的條目一律無摘要，模型硬寫也丟掉
+    for entry in inputs:
+        if _content_thin(entry) and entry["id"] in results:
+            results[entry["id"]]["summary"] = None
     return results

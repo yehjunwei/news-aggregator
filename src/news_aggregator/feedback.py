@@ -43,6 +43,24 @@ def _parse(data: str) -> tuple[int, int] | None:
     return (item_id, signal) if signal is not None else None
 
 
+def record_feedback(session, data: str) -> str:
+    """記錄單筆回饋（給 CLI 用，callback 被 gateway 轉成文字時的補救路徑）。
+
+    格式不符 raise ValueError、查無 item raise LookupError；成功回傳單行結果訊息。
+    """
+    parsed = _parse(data)
+    if parsed is None:
+        raise ValueError(f"格式不符（需 fb:<item_id>:up|down）：{data!r}")
+    item_id, signal = parsed
+    item = session.get(Item, item_id)
+    if item is None:
+        raise LookupError(f"查無新聞 item {item_id}")
+    item.feedback = signal
+    session.commit()
+    emoji = "👍" if signal > 0 else "👎"
+    return f"已記錄 {emoji}：{item.title_zh or item.title}"
+
+
 def _apply_update(session, tg_updates: list[dict]) -> tuple[int, int, list[tuple[str, int]]]:
     """套用回饋到 DB，回傳 (套用筆數, 最大 update_id, 待回應的 [(callback_id, signal)])。"""
     applied = 0

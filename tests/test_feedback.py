@@ -1,5 +1,7 @@
 from news_aggregator.db.models import Item, Source
-from news_aggregator.feedback import _apply_update, _parse, feedback_examples
+import pytest
+
+from news_aggregator.feedback import _apply_update, _parse, feedback_examples, record_feedback
 
 
 def test_parse_valid_and_invalid():
@@ -41,6 +43,21 @@ def test_apply_update_sets_feedback_and_collects_acks(session):
     # 有效格式都要 ack（即使 item 不存在也回應，避免使用者以為沒收到）
     assert ("cb1", 1) in acks and ("cb3", -1) in acks
     assert all(a[0] != "cb2" for a in acks)  # 格式錯誤的不 ack
+
+
+def test_record_feedback_up_and_down(session):
+    it = _item(session, "10", "Story X")
+    assert "👍" in record_feedback(session, f"fb:{it.id}:up")
+    assert it.feedback == 1
+    assert "👎" in record_feedback(session, f"fb:{it.id}:down")
+    assert it.feedback == -1
+
+
+def test_record_feedback_rejects_bad_input(session):
+    with pytest.raises(ValueError):
+        record_feedback(session, "garbage")
+    with pytest.raises(LookupError):
+        record_feedback(session, "fb:99999:up")
 
 
 def test_feedback_examples_splits_liked_disliked(session):

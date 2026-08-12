@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import calendar
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 import feedparser
 from bs4 import BeautifulSoup
@@ -33,6 +34,26 @@ def _entry_text(entry) -> str | None:
     return text[:2000] or None
 
 
+def _host(url: str) -> str:
+    host = urlsplit(url).netloc.lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def _source_link(entry) -> str | None:
+    """從 description/summary HTML 抽第一個站外 <a href>（如 Techmeme 帶 gift token 的原文連結）。"""
+    raw = entry.get("summary") or ""
+    if not raw and entry.get("content"):
+        raw = entry["content"][0].get("value", "")
+    if not raw:
+        return None
+    own = _host(entry.get("link") or "")
+    for a in BeautifulSoup(raw, "html.parser").find_all("a", href=True):
+        host = _host(a["href"])
+        if host and host != own:
+            return a["href"]
+    return None
+
+
 class RSSAdapter:
     source_type = "rss"
 
@@ -41,6 +62,7 @@ class RSSAdapter:
         if not url:
             return FetchResult(items=[])
         limit = int((state.config or {}).get("limit", 40))
+        extract = bool((state.config or {}).get("extract_source_link"))
 
         resp = await client.get(url, headers=conditional_headers(state))
         if resp.status_code == 304:
@@ -55,11 +77,12 @@ class RSSAdapter:
             external_id = str(entry.get("id") or link)
             if not link:
                 continue
+            url = (_source_link(entry) if extract else None) or link
             items.append(
                 RawItem(
                     source_name=state.name,
                     external_id=external_id,
-                    url=link,
+                    url=url,
                     title=entry.get("title", ""),
                     author=entry.get("author"),
                     published_at=_entry_published(entry),
