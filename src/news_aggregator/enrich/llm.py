@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Protocol
@@ -34,6 +35,10 @@ PRICING: dict[str, tuple[float, float]] = {
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.0),
 }
+
+
+# Google geo-400（誤判地區）單一請求的最大嘗試次數
+_GEO_RETRIES = 4
 
 
 def _empty_usage() -> dict:
@@ -113,7 +118,19 @@ class GeminiProvider:
         client = self._client or httpx.AsyncClient(timeout=60)
         try:
             # key 走 header，避免出現在 URL / 例外訊息 / log
-            resp = await client.post(url, headers={"x-goog-api-key": self.api_key}, json=payload)
+            # Google 偶發把本機 IP 誤判為不支援地區（400 FAILED_PRECONDITION），
+            # 逐請求隨機發生、多數重試即過 → 只對這個錯誤重試，其他錯誤原樣拋出
+            for attempt in range(1, _GEO_RETRIES + 1):
+                resp = await client.post(url, headers={"x-goog-api-key": self.api_key}, json=payload)
+                if (
+                    resp.status_code == 400
+                    and attempt < _GEO_RETRIES
+                    and "User location is not supported" in resp.text
+                ):
+                    logger.warning("Gemini geo-400（第 %d 次），%ds 後重試", attempt, 2 * attempt)
+                    await asyncio.sleep(2 * attempt)
+                    continue
+                break
             resp.raise_for_status()
             data = resp.json()
             meta = data.get("usageMetadata") or {}

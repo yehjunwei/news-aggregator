@@ -7,6 +7,9 @@ from news_aggregator.enrich.llm import GeminiProvider, _extract_json
 
 
 class FakeResponse:
+    status_code = 200
+    text = ""
+
     def raise_for_status(self):
         pass
 
@@ -42,6 +45,33 @@ async def test_gemini_response_schema_in_payload():
     schema = {"type": "OBJECT"}
     await provider.complete_json("sys", "user", schema=schema)
     assert client.kwargs["json"]["generationConfig"]["responseSchema"] is schema
+
+
+async def test_gemini_geo_400_retries_then_succeeds(monkeypatch):
+    # Google 偶發把出口 IP 誤判為不支援地區：前兩次 geo-400、第三次成功 → 應重試後成功
+    from news_aggregator.enrich import llm
+
+    class Geo400Response(FakeResponse):
+        status_code = 400
+        text = '{"error": {"message": "User location is not supported for the API use."}}'
+
+    class FlakyClient(FakeClient):
+        calls = 0
+
+        async def post(self, url, **kwargs):
+            type(self).calls += 1
+            return Geo400Response() if self.calls <= 2 else await super().post(url, **kwargs)
+
+    sleeps = []
+
+    async def fake_sleep(s):
+        sleeps.append(s)
+
+    monkeypatch.setattr(llm.asyncio, "sleep", fake_sleep)
+    provider = GeminiProvider("k", client=FlakyClient())
+    assert await provider.complete_json("sys", "user") == {}
+    assert FlakyClient.calls == 3
+    assert sleeps == [2, 4]
 
 
 def test_extract_json_tolerates_control_chars_in_strings():
