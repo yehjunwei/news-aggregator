@@ -97,6 +97,72 @@ async def test_rss_extract_disabled_keeps_entry_link():
     assert result.items[0].url == "https://www.example.com/260811/p42"
 
 
+# Google News：link 為跳轉網址（host 是 news.google.com），真正出版商在 <source url=...>
+GOOGLE_NEWS = """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"><channel>
+<title>Google News</title>
+<item>
+  <title>Tesla Streak - Barron's</title>
+  <link>https://news.google.com/rss/articles/CBMabc?oc=5</link>
+  <guid>gn-paywalled</guid>
+  <source url="https://www.barrons.com">Barron's</source>
+</item>
+<item>
+  <title>Free Story - Ars Technica</title>
+  <link>https://news.google.com/rss/articles/CBMdef?oc=5</link>
+  <guid>gn-free</guid>
+  <source url="https://arstechnica.com">Ars Technica</source>
+</item>
+</channel></rss>
+"""
+
+
+@respx.mock
+async def test_rss_drops_google_news_paywalled_publisher():
+    respx.get(FEED_URL).mock(return_value=httpx.Response(200, text=GOOGLE_NEWS))
+    adapter = RSSAdapter()
+    state = SourceState(name="feed", config={"url": FEED_URL})
+    async with HttpClient(rate_limit_per_host=0) as http:
+        result = await adapter.fetch(http, state)
+
+    assert [i.external_id for i in result.items] == ["gn-free"]
+
+
+# The Verge 這類 metered 站：整站不擋，逐篇 GET 頁面看付費標記
+VERGE = """<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"><channel>
+<title>The Verge</title>
+<item>
+  <title>Paid Feature</title>
+  <link>https://www.theverge.com/tech/1/paid</link>
+  <guid>v-paid</guid>
+</item>
+<item>
+  <title>Free News</title>
+  <link>https://www.theverge.com/tech/2/free</link>
+  <guid>v-free</guid>
+</item>
+</channel></rss>
+"""
+
+
+@respx.mock
+async def test_rss_metered_site_drops_only_paywalled_articles():
+    respx.get(FEED_URL).mock(return_value=httpx.Response(200, text=VERGE))
+    respx.get("https://www.theverge.com/tech/1/paid").mock(
+        return_value=httpx.Response(200, text='{"isAccessibleForFree": false}')
+    )
+    respx.get("https://www.theverge.com/tech/2/free").mock(
+        return_value=httpx.Response(200, text="<html>all free</html>")
+    )
+    adapter = RSSAdapter()
+    state = SourceState(name="feed", config={"url": FEED_URL})
+    async with HttpClient(rate_limit_per_host=0) as http:
+        result = await adapter.fetch(http, state)
+
+    assert [i.external_id for i in result.items] == ["v-free"]
+
+
 @respx.mock
 async def test_rss_handles_304_not_modified():
     respx.get(FEED_URL).mock(return_value=httpx.Response(304))

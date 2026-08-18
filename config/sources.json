@@ -30,7 +30,7 @@
 
   { "name": "reuters-ai-auto",   "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Areuters.com%20%28AI%20OR%20robotics%20OR%20Tesla%20OR%20Waymo%20OR%20Mobileye%20OR%20robotaxi%20OR%20%22autonomous%20driving%22%29&hl=en-US&gl=US&ceid=US:en", "limit": 15 } },
   { "name": "axios-ai-mobility", "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Aaxios.com%20%28AI%20OR%20robotics%20OR%20Tesla%20OR%20Waymo%20OR%20robotaxi%20OR%20%22autonomous%20driving%22%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-  { "name": "premium-tech-business", "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=%28site%3Atheinformation.com%20OR%20site%3Abloomberg.com%29%20%28AI%20OR%20robotics%20OR%20autonomous%20OR%20Tesla%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
+  { "name": "premium-tech-business", "type": "rss", "enabled": false, "comment": "停用：來源全為付費牆站（theinformation/bloomberg），付費牆過濾後必為空", "config": { "url": "https://news.google.com/rss/search?q=%28site%3Atheinformation.com%20OR%20site%3Abloomberg.com%29%20%28AI%20OR%20robotics%20OR%20autonomous%20OR%20Tesla%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
 
   { "name": "robotics-ieee-spectrum", "type": "rss", "config": { "url": "https://spectrum.ieee.org/feeds/topic/robotics.rss", "limit": 10 } },
   { "name": "tech-techmeme",          "type": "rss", "config": { "url": "https://www.techmeme.com/feed.xml", "limit": 20, "extract_source_link": true } },

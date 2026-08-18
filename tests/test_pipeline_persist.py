@@ -6,6 +6,7 @@ from news_aggregator.config import Settings
 from news_aggregator.core.timez import now_utc
 from news_aggregator.db.models import Item, ItemMetric, Source
 from news_aggregator.pipeline import (
+    _select_candidates,
     load_enabled_sources,
     persist_results,
     score_undelivered,
@@ -112,3 +113,26 @@ def test_score_and_rank(session):
     top = top_undelivered(session, 10)
     assert top[0].external_id == "1"
     assert all(i.final_score > 0 for i in top)
+
+
+def test_select_candidates_drops_paywalled_urls(session):
+    # 通用防線：非 rss adapter（如 HN）直連付費站的條目，推送前剔除
+    src = Source(name="hn", type="hackernews", config={})
+    session.add(src)
+    session.commit()
+    persist_results(
+        session,
+        [(src, FetchResult(items=[
+            _raw("hn", "1", "Paywalled story", "https://www.wsj.com/articles/x"),
+            _raw("hn", "2", "Free story", "https://e.com/free"),
+        ]))],
+        _settings(),
+    )
+    for it in session.query(Item).all():
+        it.category = "other"
+        it.personal_relevance_score = 90
+    session.commit()
+    score_undelivered(session, _settings())
+
+    picked = _select_candidates(session, _settings(), {"categories": None})
+    assert [i.external_id for i in picked] == ["2"]

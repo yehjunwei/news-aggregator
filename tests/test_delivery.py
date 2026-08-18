@@ -35,28 +35,6 @@ def test_render_telegram_title_is_hyperlink_and_escapes():
     assert '<a href="https://example.com/very/long/url">A &lt; B &amp; C</a>' in blocks[0]
 
 
-def test_paywall_marker():
-    # 裸 Bloomberg 連結：HTML 與 MD 標題前都標 💰；子網域也算
-    _, blocks = render_telegram([_item(url="https://www.bloomberg.com/news/x")], RUN_DT)
-    assert blocks[0].startswith("💰 <b>")
-    md = render_markdown([_item(url="https://www.wsj.com/articles/y")], RUN_DT)
-    assert "### 💰 [中文標題]" in md
-    # 名單外域名不標
-    _, blocks = render_telegram([_item()], RUN_DT)
-    assert "💰" not in blocks[0]
-
-
-def test_paywall_gift_link_and_lookalike_exempt():
-    # gift link（accessToken）豁免
-    _, blocks = render_telegram(
-        [_item(url="https://www.bloomberg.com/news/x?accessToken=gift123")], RUN_DT
-    )
-    assert "💰" not in blocks[0]
-    # 後綴仿冒域名不誤標
-    _, blocks = render_telegram([_item(url="https://bloomberg.com.evil.io/x")], RUN_DT)
-    assert "💰" not in blocks[0]
-
-
 def test_item_keyboard_carries_item_id():
     kb = item_keyboard(42)
     buttons = kb["inline_keyboard"][0]

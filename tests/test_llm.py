@@ -74,6 +74,67 @@ async def test_gemini_geo_400_retries_then_succeeds(monkeypatch):
     assert sleeps == [2, 4]
 
 
+def _geo_error() -> "httpx.HTTPStatusError":
+    import httpx
+
+    req = httpx.Request("POST", "http://test")
+    resp = httpx.Response(
+        400, request=req,
+        text='{"error": {"message": "User location is not supported for the API use."}}',
+    )
+    return httpx.HTTPStatusError("400", request=req, response=resp)
+
+
+class StubProvider:
+    model = "stub"
+
+    def __init__(self, result=None, error=None):
+        self.result, self.error, self.calls = result, error, 0
+        self.usage = {"prompt": 1, "completion": 2, "total": 3}
+
+    async def complete_json(self, system, user, schema=None):
+        self.calls += 1
+        if self.error:
+            raise self.error
+        return self.result
+
+
+async def test_fallback_uses_backup_on_geo_400():
+    from news_aggregator.enrich.llm import FallbackProvider
+
+    primary = StubProvider(error=_geo_error())
+    backup = StubProvider(result={"ok": True})
+    fb = FallbackProvider(primary, backup)
+    assert await fb.complete_json("s", "u") == {"ok": True}
+    assert primary.calls == 1 and backup.calls == 1
+    assert fb.usage == {"prompt": 2, "completion": 4, "total": 6}  # 兩邊合併
+
+
+async def test_fallback_propagates_non_geo_errors():
+    import httpx
+
+    from news_aggregator.enrich.llm import FallbackProvider
+
+    req = httpx.Request("POST", "http://test")
+    err = httpx.HTTPStatusError(
+        "503", request=req, response=httpx.Response(503, request=req, text="oops")
+    )
+    primary = StubProvider(error=err)
+    backup = StubProvider(result={})
+    with pytest.raises(httpx.HTTPStatusError):
+        await FallbackProvider(primary, backup).complete_json("s", "u")
+    assert backup.calls == 0
+
+
+async def test_fallback_raises_backup_error_when_both_fail():
+    from news_aggregator.enrich.llm import FallbackProvider
+
+    primary = StubProvider(error=_geo_error())
+    backup = StubProvider(error=RuntimeError("backup dead"))
+    with pytest.raises(RuntimeError, match="backup dead"):
+        await FallbackProvider(primary, backup).complete_json("s", "u")
+
+
 def test_extract_json_tolerates_control_chars_in_strings():
     # 模型偶爾在字串內輸出未跳脫的原始換行
     assert _extract_json('{"a": "line1\nline2"}') == {"a": "line1\nline2"}

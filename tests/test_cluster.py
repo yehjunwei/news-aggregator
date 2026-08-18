@@ -63,6 +63,13 @@ def _undelivered(items):
 # --------------------------------------------------------------------------- #
 # group_same_event
 # --------------------------------------------------------------------------- #
+def test_clean_groups_tolerates_plain_list_groups():
+    # OpenAI 備援（無 schema 約束）可能回 [[1,2],[3]] 而非 [{"ids": [...]}]
+    from news_aggregator.enrich.cluster import _clean_groups
+
+    assert _clean_groups([[1, 2], [3]], {1, 2, 3}) == [[1, 2]]
+
+
 def test_drops_unknown_ids_and_singleton_groups():
     p = _FakeProvider([[1, 999], [2, 3], [4]])
     entries = [{"id": i, "title": f"t{i}"} for i in (1, 2, 3, 4)]

@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-lite-latest"
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-5.4-mini"
     llm_summary_sentences: int = 3
     llm_batch_size: int = 8
 

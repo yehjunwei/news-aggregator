@@ -180,6 +180,40 @@ class OpenAIProvider:
                 await client.aclose()
 
 
+class FallbackProvider:
+    """主 provider 因 Gemini geo-400（重試耗盡）失敗時，改用備援 provider 完成該次呼叫。
+
+    每次呼叫都先試主 provider，Google 恢復後自動回歸；其他錯誤原樣拋出。
+    """
+
+    def __init__(self, primary: LLMProvider, backup: LLMProvider):
+        self.primary = primary
+        self.backup = backup
+
+    @property
+    def model(self) -> str:
+        return self.primary.model
+
+    @property
+    def usage(self) -> dict:
+        # ponytail: 合併兩邊 usage、成本以主用 model 單價近似；備援僅救火用，不精算
+        merged = _empty_usage()
+        for u in (self.primary.usage, self.backup.usage):
+            for k in merged:
+                merged[k] += u.get(k, 0)
+        return merged
+
+    async def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
+        try:
+            return await self.primary.complete_json(system, user, schema=schema)
+        except httpx.HTTPStatusError as exc:
+            resp = exc.response
+            if resp.status_code != 400 or "User location is not supported" not in resp.text:
+                raise
+            logger.warning("Gemini geo-400 重試耗盡，本次改用備援 %s", self.backup.model)
+            return await self.backup.complete_json(system, user, schema=schema)
+
+
 class NullProvider:
     """無金鑰 / 停用 LLM 時的 no-op provider。"""
 
@@ -198,6 +232,12 @@ def build_provider(settings, client: httpx.AsyncClient | None = None) -> LLMProv
     if settings.llm_provider == "openai" and settings.openai_api_key:
         return OpenAIProvider(settings.openai_api_key, settings.openai_model, client)
     if settings.gemini_api_key:
-        return GeminiProvider(settings.gemini_api_key, settings.gemini_model, client)
+        gemini = GeminiProvider(settings.gemini_api_key, settings.gemini_model, client)
+        if settings.openai_api_key:
+            # Gemini geo-400（Google 誤判出口 IP 地區）連續失敗窗口的自動備援
+            return FallbackProvider(
+                gemini, OpenAIProvider(settings.openai_api_key, settings.openai_model, client)
+            )
+        return gemini
     logger.warning("找不到 LLM 金鑰，改用 NullProvider（不做分類/摘要）")
     return NullProvider()

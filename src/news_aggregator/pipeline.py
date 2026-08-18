@@ -14,6 +14,7 @@ from sqlalchemy import select
 from .config import DATA_DIR, Settings, get_settings
 from .core.dedup import canonical_url, content_hash, normalize_title
 from .core.http import HttpClient
+from .core.paywall import is_paywalled
 from .core.timez import now_utc, to_taipei, to_utc
 from .db.models import Digest, Item, ItemMetric, Source
 from .db.session import init_db, make_engine, make_session_factory
@@ -507,10 +508,12 @@ async def _push_telegram(settings, http, views, footer, run_dt, title) -> bool:
 # entrypoint
 # --------------------------------------------------------------------------- #
 def _select_candidates(session, settings: Settings, prof: dict) -> list[Item]:
-    """候選過濾：時效窗 + profile 類別 + 個人相關度硬門檻（None 放行不誤殺）。"""
+    """候選過濾：時效窗 + 付費牆 + profile 類別 + 個人相關度硬門檻（None 放行不誤殺）。"""
     candidates = top_undelivered(session, 1000)
     fresh_cutoff = now_utc() - timedelta(days=settings.candidate_max_age_days)
     candidates = [c for c in candidates if c.first_seen_at and to_utc(c.first_seen_at) >= fresh_cutoff]
+    # 通用防線：涵蓋 HN 等其他 adapter 直連付費站的條目（rss adapter 已在抓取階段先擋）
+    candidates = [c for c in candidates if not is_paywalled(c.url)]
     allowed = prof["categories"]
     if allowed is not None:
         allowed_set = set(allowed)

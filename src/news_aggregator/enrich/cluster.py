@@ -54,8 +54,10 @@ def _clean_groups(raw_groups, valid_ids: set[int]) -> list[list[int]]:
     groups: list[list[int]] = []
     used: set[int] = set()
     for group in raw_groups or []:
+        # 無 schema 約束的 provider（OpenAI 備援）可能回純 id list 而非 {"ids": [...]}
+        raw_ids = group if isinstance(group, list) else (group or {}).get("ids")
         ids: list[int] = []
-        for raw in (group or {}).get("ids") or []:
+        for raw in raw_ids or []:
             try:
                 item_id = int(raw)
             except (TypeError, ValueError):
