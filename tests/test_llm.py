@@ -99,15 +99,18 @@ class StubProvider:
         return self.result
 
 
-async def test_fallback_uses_backup_on_geo_400():
+async def test_fallback_uses_backup_on_geo_400(caplog):
     from news_aggregator.enrich.llm import FallbackProvider
 
     primary = StubProvider(error=_geo_error())
     backup = StubProvider(result={"ok": True})
     fb = FallbackProvider(primary, backup)
-    assert await fb.complete_json("s", "u") == {"ok": True}
+    with caplog.at_level(logging.WARNING, logger="news_aggregator.enrich.llm"):
+        assert await fb.complete_json("s", "u") == {"ok": True}
     assert primary.calls == 1 and backup.calls == 1
     assert fb.usage == {"prompt": 2, "completion": 4, "total": 6}  # 兩邊合併
+    # 備援成功屬正常運作：stderr 必須安靜（cron announce 會把 stderr 當錯誤）
+    assert not caplog.records
 
 
 async def test_fallback_propagates_non_geo_errors():
@@ -145,13 +148,17 @@ async def test_fallback_model_and_cost_reflect_backup():
     )
 
 
-async def test_fallback_raises_backup_error_when_both_fail():
+async def test_fallback_raises_backup_error_when_both_fail(caplog):
     from news_aggregator.enrich.llm import FallbackProvider
 
     primary = StubProvider(error=_geo_error())
     backup = StubProvider(error=RuntimeError("backup dead"))
-    with pytest.raises(RuntimeError, match="backup dead"):
-        await FallbackProvider(primary, backup).complete_json("s", "u")
+    with caplog.at_level(logging.WARNING, logger="news_aggregator.enrich.llm"):
+        with pytest.raises(RuntimeError, match="backup dead"):
+            await FallbackProvider(primary, backup).complete_json("s", "u")
+    # 雙敗才印、且恰一行
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and "備援" in warnings[0].getMessage()
 
 
 def test_extract_json_tolerates_control_chars_in_strings():

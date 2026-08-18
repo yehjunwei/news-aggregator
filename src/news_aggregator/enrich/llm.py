@@ -129,7 +129,8 @@ class GeminiProvider:
                     and attempt < _GEO_RETRIES
                     and "User location is not supported" in resp.text
                 ):
-                    logger.warning("Gemini geo-400（第 %d 次），%ds 後重試", attempt, 2 * attempt)
+                    # debug 級：正常運作的重試不進 stderr（cron announce 會把 stderr 當錯誤回報）
+                    logger.debug("Gemini geo-400（第 %d 次），%ds 後重試", attempt, 2 * attempt)
                     await asyncio.sleep(2 * attempt)
                     continue
                 break
@@ -224,8 +225,13 @@ class FallbackProvider:
             resp = exc.response
             if resp.status_code != 400 or "User location is not supported" not in resp.text:
                 raise
-            logger.warning("Gemini geo-400 重試耗盡，本次改用備援 %s", self.backup.model)
-            return await self.backup.complete_json(system, user, schema=schema)
+            # 切備援屬正常運作，不進 stderr；footer 會揭露備援用量
+            logger.debug("Gemini geo-400 重試耗盡，本次改用備援 %s", self.backup.model)
+            try:
+                return await self.backup.complete_json(system, user, schema=schema)
+            except Exception:
+                logger.warning("Gemini 被擋（geo-400），備援 %s 也失敗", self.backup.model)
+                raise
 
 
 class NullProvider:
