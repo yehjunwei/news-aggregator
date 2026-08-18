@@ -34,6 +34,8 @@ PRICING: dict[str, tuple[float, float]] = {
     "gemini-flash": (0.30, 2.50),
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.0),
+    "gpt-5.4-mini": (0.75, 4.50),
+    "gpt-5.4": (2.50, 15.0),
 }
 
 
@@ -192,16 +194,28 @@ class FallbackProvider:
 
     @property
     def model(self) -> str:
+        # 備援有實際用量時如實標示，digest footer 才能反映現狀
+        if self.backup.usage.get("total"):
+            return f"{self.primary.model}＋備援 {self.backup.model}"
         return self.primary.model
 
     @property
     def usage(self) -> dict:
-        # ponytail: 合併兩邊 usage、成本以主用 model 單價近似；備援僅救火用，不精算
         merged = _empty_usage()
         for u in (self.primary.usage, self.backup.usage):
             for k in merged:
                 merged[k] += u.get(k, 0)
         return merged
+
+    @property
+    def cost(self) -> float | None:
+        """兩邊各按各的單價估算後加總；皆無價目表時回 None。"""
+        parts = [
+            estimate_cost(self.primary.model, self.primary.usage),
+            estimate_cost(self.backup.model, self.backup.usage),
+        ]
+        known = [p for p in parts if p is not None]
+        return sum(known) if known else None
 
     async def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
         try:

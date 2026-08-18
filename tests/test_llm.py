@@ -126,6 +126,25 @@ async def test_fallback_propagates_non_geo_errors():
     assert backup.calls == 0
 
 
+async def test_fallback_model_and_cost_reflect_backup():
+    from news_aggregator.enrich.llm import FallbackProvider, estimate_cost
+
+    primary = StubProvider(error=_geo_error())
+    primary.model = "gemini-flash-lite-latest"
+    backup = StubProvider(result={})
+    backup.model = "gpt-5.4-mini"
+    backup.usage = {"prompt": 0, "completion": 0, "total": 0}
+    fb = FallbackProvider(primary, backup)
+    assert fb.model == "gemini-flash-lite-latest"  # 備援未用 → 只顯示主用
+    await fb.complete_json("s", "u")
+    backup.usage = {"prompt": 100, "completion": 10, "total": 110}
+    assert fb.model == "gemini-flash-lite-latest＋備援 gpt-5.4-mini"
+    assert fb.cost == (
+        estimate_cost("gemini-flash-lite-latest", primary.usage)
+        + estimate_cost("gpt-5.4-mini", backup.usage)
+    )
+
+
 async def test_fallback_raises_backup_error_when_both_fail():
     from news_aggregator.enrich.llm import FallbackProvider
 

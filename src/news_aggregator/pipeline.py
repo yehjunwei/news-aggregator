@@ -244,7 +244,9 @@ async def enrich_pending(
 
     usage = dict(getattr(provider, "usage", {"prompt": 0, "completion": 0, "total": 0}))
     model = getattr(provider, "model", "")
-    return {"applied": applied, "usage": usage, "model": model, "cost": estimate_cost(model, usage)}
+    # FallbackProvider 自報 cost（兩邊各按各的單價）；其他 provider 走單一單價估算
+    cost = provider.cost if hasattr(provider, "cost") else estimate_cost(model, usage)
+    return {"applied": applied, "usage": usage, "model": model, "cost": cost}
 
 
 # --------------------------------------------------------------------------- #
@@ -538,8 +540,13 @@ def _merge_usage(enrich_info: dict, provider) -> None:
     usage = getattr(provider, "usage", None) or {}
     for key in ("prompt", "completion", "total"):
         enrich_info["usage"][key] = enrich_info["usage"].get(key, 0) + usage.get(key, 0)
-    enrich_info["model"] = enrich_info["model"] or getattr(provider, "model", "")
-    enrich_info["cost"] = estimate_cost(enrich_info["model"], enrich_info["usage"])
+    # 兩階段 provider 的 primary 相同，只差「＋備援 …」尾綴：取較長者即含備援標示的那個
+    cluster_model = getattr(provider, "model", "")
+    if len(cluster_model) > len(enrich_info["model"] or ""):
+        enrich_info["model"] = cluster_model
+    cluster_cost = provider.cost if hasattr(provider, "cost") else estimate_cost(cluster_model, usage)
+    parts = [p for p in (enrich_info.get("cost"), cluster_cost) if p is not None]
+    enrich_info["cost"] = sum(parts) if parts else None
 
 
 async def _deliver_stage(session_factory, settings, http, profile, enrich_info, dry_run) -> int:
