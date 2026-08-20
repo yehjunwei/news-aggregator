@@ -10,6 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # news-aggregator/
 DATA_DIR = BASE_DIR / "data"
 CONFIG_DIR = BASE_DIR / "config"
+# 全域 LLM model／單價單一來源（openclaw 層，跨專案共用）
+MODELS_FILE = Path("~/.openclaw/config/models.json").expanduser()
 
 # credentials/api_keys.json -> Settings 欄位
 _CREDENTIAL_MAP = {
@@ -32,9 +34,9 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"  # gemini | openai
     llm_enabled: bool = True
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-flash-lite-latest"
+    gemini_model: str = ""
     openai_api_key: str = ""
-    openai_model: str = "gpt-5.4-mini"
+    openai_model: str = ""
     llm_summary_sentences: int = 3
     llm_batch_size: int = 8
 
@@ -68,6 +70,8 @@ class Settings(BaseSettings):
 
     # openclaw 金鑰檔（不存在時略過）
     credentials_file: Path = Path("~/.openclaw/credentials/api_keys.json")
+    # 全域 model 單一來源；gemini_model / openai_model 留空時由它補，.env 指定則優先
+    models_file: Path = MODELS_FILE
 
     @property
     def resolved_database_url(self) -> str:
@@ -96,8 +100,39 @@ def _merge_credentials(settings: Settings) -> Settings:
 _settings: Settings | None = None
 
 
+# Settings 欄位 -> config/models.json 的 key
+# news digest 是高頻批次摘要，屬 quick 級工作，故兩邊都取 quick
+_MODEL_MAP = {"gemini_model": "gemini_quick", "openai_model": "openai_quick"}
+
+
+def _merge_models(settings: Settings) -> Settings:
+    """空著的 model 欄位改用全域 models.json。
+
+    與 _merge_credentials 不同，這裡讀不到就**拋錯不放行**：靜默沿用預設 model
+    正是先前「以為改了其實沒改」的來源。要脫離全域設定就在 .env 明確指定。
+    """
+    missing = [f for f in _MODEL_MAP if not getattr(settings, f)]
+    if not missing:
+        return settings
+    path = Path(settings.models_file).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise RuntimeError(
+            f"讀不到全域 model 設定 {path}（{exc}）；"
+            "請確認檔案存在，或在 .env 明確指定 GEMINI_MODEL / OPENAI_MODEL"
+        ) from None
+    updates = {}
+    for field_name in missing:
+        model = (data.get(_MODEL_MAP[field_name]) or {}).get("model")
+        if not model:
+            raise RuntimeError(f"{path} 缺少 {_MODEL_MAP[field_name]}.model")
+        updates[field_name] = str(model)
+    return settings.model_copy(update=updates)
+
+
 def get_settings(*, refresh: bool = False) -> Settings:
     global _settings
     if _settings is None or refresh:
-        _settings = _merge_credentials(Settings())
+        _settings = _merge_models(_merge_credentials(Settings()))
     return _settings

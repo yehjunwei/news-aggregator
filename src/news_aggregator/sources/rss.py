@@ -27,11 +27,16 @@ def _entry_published(entry) -> datetime | None:
 
 
 def _entry_text(entry) -> str | None:
-    raw = ""
-    if entry.get("summary"):
-        raw = entry["summary"]
-    elif entry.get("content"):
-        raw = entry["content"][0].get("value", "")
+    """取內文：summary 與 content 取較長者。
+
+    有些 feed（例如微信公眾號鏡像）summary 只放十幾個字的導言，全文在 content。
+    先前寫死優先 summary，等於只餵給 LLM 一句話，摘要品質直接報廢。
+    """
+    summary = entry.get("summary") or ""
+    content = ""
+    if entry.get("content"):
+        content = entry["content"][0].get("value", "") or ""
+    raw = max(summary, content, key=len)
     if not raw:
         return None
     text = BeautifulSoup(raw, "html.parser").get_text(" ", strip=True)
@@ -87,6 +92,8 @@ class RSSAdapter:
             return FetchResult(items=[])
         limit = int((state.config or {}).get("limit", 40))
         extract = bool((state.config or {}).get("extract_source_link"))
+        # 深度來源用:內文太短的條目直接不收——「點進去資訊量太少」是主人最大的痛點
+        min_chars = int((state.config or {}).get("min_chars", 0))
 
         resp = await client.get(url, headers=conditional_headers(state))
         if resp.status_code == 304:
@@ -97,6 +104,7 @@ class RSSAdapter:
         parsed = feedparser.parse(resp.content)
         items: list[RawItem] = []
         blocked = 0
+        too_short = 0
         for entry in parsed.entries[:limit]:
             link = entry.get("link") or ""
             external_id = str(entry.get("id") or link)
@@ -108,9 +116,15 @@ class RSSAdapter:
             if await _paywall_blocked(client, item_url, publisher):
                 blocked += 1
                 continue
-            items.append(_to_item(state, entry, item_url, external_id))
+            raw = _to_item(state, entry, item_url, external_id)
+            if min_chars and len(raw.content or "") < min_chars:
+                too_short += 1
+                continue
+            items.append(raw)
         if blocked:
             logger.info("來源 %s 擋掉 %d 則付費牆條目", state.name, blocked)
+        if too_short:
+            logger.info("來源 %s 擋掉 %d 則過短條目（<%d 字）", state.name, too_short, min_chars)
 
         return FetchResult(
             items=items,

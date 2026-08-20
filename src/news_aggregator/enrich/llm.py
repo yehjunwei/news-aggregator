@@ -9,7 +9,7 @@ from typing import Protocol
 
 import httpx
 
-from news_aggregator.config import DATA_DIR
+from news_aggregator.config import DATA_DIR, MODELS_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,9 @@ class LLMProvider(Protocol):
     ) -> dict: ...
 
 
-# 約略單價（USD / 1M tokens）：(input, output)。可依官方價目調整。
+# 約略單價（USD / 1M tokens）：(input, output)。
+# 目前使用中的 model 單價來自全域 config/models.json（與 model 名稱同源，換 model 必換價）；
+# 下表只留「非現用 model」的歷史價目，供切回舊 model 時仍估得出費用。
 PRICING: dict[str, tuple[float, float]] = {
     "gemini-flash-lite": (0.10, 0.40),
     "gemini-2.0-flash-lite": (0.10, 0.40),
@@ -37,6 +39,27 @@ PRICING: dict[str, tuple[float, float]] = {
     "gpt-5.4-mini": (0.75, 4.50),
     "gpt-5.4": (2.50, 15.0),
 }
+
+
+def _load_shared_rates() -> dict[str, tuple[float, float]]:
+    """全域 config/models.json 的單價，key 為 model 名稱。
+
+    讀不到只 warning 不中斷：費用顯示不了不該擋住 digest 推送。
+    """
+    try:
+        data = json.loads(MODELS_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("讀不到全域 model 單價 %s（%s）；費用改用靜態表", MODELS_FILE, exc)
+        return {}
+    rates = {}
+    for spec in data.values():
+        if isinstance(spec, dict) and spec.get("model"):
+            rates[str(spec["model"])] = (float(spec["input"]), float(spec["output"]))
+    return rates
+
+
+# 現用 model 的單價蓋過靜態表；_match_rate 取最長相符 key，完整 model 名一定優先命中
+PRICING.update(_load_shared_rates())
 
 
 # Google geo-400（誤判地區）單一請求的最大嘗試次數
@@ -100,7 +123,7 @@ def _dump_bad_output(text: str):
 
 
 class GeminiProvider:
-    def __init__(self, api_key: str, model: str = "gemini-flash-lite-latest", client: httpx.AsyncClient | None = None):
+    def __init__(self, api_key: str, model: str = "gemini-3.7-flash", client: httpx.AsyncClient | None = None):
         self.api_key = api_key
         self.model = model
         self._client = client

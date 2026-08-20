@@ -1,23 +1,26 @@
 {
   "people": [
-    { "name": "Elon Musk", "x_handle": "elonmusk" },
-    { "name": "Andrej Karpathy", "x_handle": "karpathy" },
-    { "name": "Sam Altman", "x_handle": "sama" },
-    { "name": "Shams Charania", "x_handle": "ShamsCharania" }
+    {
+      "name": "Andrej Karpathy",
+      "x_handle": "karpathy"
+    },
+    {
+      "name": "Sam Altman",
+      "x_handle": "sama"
+    }
   ],
-  "tickers": [
-    { "symbol": "TSLA", "name": "Tesla" },
-    { "symbol": "AAPL", "name": "Apple" },
-    { "symbol": "META", "name": "Meta" },
-    { "symbol": "NVDA", "name": "NVIDIA" },
-    { "symbol": "TSM", "name": "TSMC" }
+  "tickers": [],
+  "topics": [
+    "AI",
+    "電動車",
+    "AI Engineering Management"
   ],
-  "topics": ["AI", "電動車", "AI Engineering Management"],
   "platforms": {
     "x": true,
     "hackernews": true,
     "github": true,
     "reddit": true,
     "trending": true
-  }
+  },
+  "_tickers_note": "持股由 shared/data/stocks.json 自動推導，這裡只放「想追蹤但沒持有」的標的"
 }

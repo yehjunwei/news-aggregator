@@ -2,134 +2,347 @@
   {
     "name": "hackernews-best",
     "type": "hackernews",
-    "config": { "story_type": "best", "limit": 15, "min_score": 50 }
+    "config": {
+      "story_type": "best",
+      "limit": 15,
+      "min_score": 50
+    }
   },
   {
     "name": "github-ai-agents",
     "type": "github_search",
-    "config": { "created_within_days": 30, "min_stars": 500, "query": "topic:ai-agents OR topic:llm OR topic:agents", "limit": 10 }
+    "config": {
+      "created_within_days": 30,
+      "min_stars": 500,
+      "query": "topic:ai-agents OR topic:llm OR topic:agents",
+      "limit": 10
+    }
   },
   {
     "name": "rss-simonwillison",
     "type": "rss",
-    "config": { "url": "https://simonwillison.net/atom/everything/", "limit": 10 }
+    "config": {
+      "url": "https://simonwillison.net/atom/everything/",
+      "limit": 10
+    }
   },
-
-  { "name": "ai-openai-news",       "type": "rss", "config": { "url": "https://openai.com/news/rss.xml", "limit": 10 } },
-  { "name": "ai-anthropic-news",    "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Aanthropic.com&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-  { "name": "ai-google-deepmind",   "type": "rss", "config": { "url": "https://deepmind.google/blog/rss.xml", "limit": 10 } },
-  { "name": "ai-nvidia-industry",   "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Ablogs.nvidia.com%20%28%22Jensen%20Huang%22%20OR%20robotics%20OR%20humanoid%20OR%20automotive%20OR%20%22autonomous%22%20OR%20%22physical%20AI%22%20OR%20DRIVE%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-
-  { "name": "analysis-platformer",        "type": "rss", "config": { "url": "https://www.platformer.news/feed", "limit": 10 } },
-  { "name": "analysis-one-useful-thing",  "type": "rss", "config": { "url": "https://www.oneusefulthing.org/feed", "limit": 5 } },
-  { "name": "analysis-import-ai",         "type": "rss", "config": { "url": "https://jack-clark.net/feed/", "limit": 5 } },
-
-  { "name": "av-mobileye",  "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Amobileye.com%20%28robotaxi%20OR%20autonomous%20OR%20ADAS%20OR%20SuperVision%20OR%20Chauffeur%20OR%20partnership%20OR%20robotics%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-  { "name": "av-waymo",     "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Awaymo.com%20%28robotaxi%20OR%20safety%20OR%20autonomous%20OR%20blog%20OR%20research%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-  { "name": "av-nhtsa",     "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Anhtsa.gov%20%28%22automated%20driving%22%20OR%20%22self-driving%22%20OR%20ADAS%20OR%20recall%20OR%20investigation%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-
-  { "name": "reuters-ai-auto",   "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Areuters.com%20%28AI%20OR%20robotics%20OR%20Tesla%20OR%20Waymo%20OR%20Mobileye%20OR%20robotaxi%20OR%20%22autonomous%20driving%22%29&hl=en-US&gl=US&ceid=US:en", "limit": 15 } },
-  { "name": "axios-ai-mobility", "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=site%3Aaxios.com%20%28AI%20OR%20robotics%20OR%20Tesla%20OR%20Waymo%20OR%20robotaxi%20OR%20%22autonomous%20driving%22%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-  { "name": "premium-tech-business", "type": "rss", "enabled": false, "comment": "停用：來源全為付費牆站（theinformation/bloomberg），付費牆過濾後必為空", "config": { "url": "https://news.google.com/rss/search?q=%28site%3Atheinformation.com%20OR%20site%3Abloomberg.com%29%20%28AI%20OR%20robotics%20OR%20autonomous%20OR%20Tesla%29&hl=en-US&gl=US&ceid=US:en", "limit": 10 } },
-
-  { "name": "robotics-ieee-spectrum", "type": "rss", "config": { "url": "https://spectrum.ieee.org/feeds/topic/robotics.rss", "limit": 10 } },
-  { "name": "tech-techmeme",          "type": "rss", "config": { "url": "https://www.techmeme.com/feed.xml", "limit": 20, "extract_source_link": true } },
-  { "name": "people-ai-leaders",      "type": "rss", "config": { "url": "https://news.google.com/rss/search?q=%28%22Jensen%20Huang%22%20OR%20%22Dario%20Amodei%22%20OR%20%22Demis%20Hassabis%22%20OR%20%22Amnon%20Shashua%22%20OR%20%22Andrej%20Karpathy%22%20OR%20%22Jim%20Fan%22%29&hl=en-US&gl=US&ceid=US:en", "limit": 15 } },
-
+  {
+    "name": "ai-openai-news",
+    "type": "rss",
+    "config": {
+      "url": "https://openai.com/news/rss.xml",
+      "limit": 10
+    }
+  },
+  {
+    "name": "ai-anthropic-news",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Aanthropic.com&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "ai-google-deepmind",
+    "type": "rss",
+    "config": {
+      "url": "https://deepmind.google/blog/rss.xml",
+      "limit": 10
+    }
+  },
+  {
+    "name": "ai-nvidia-industry",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Ablogs.nvidia.com%20%28%22Jensen%20Huang%22%20OR%20robotics%20OR%20humanoid%20OR%20automotive%20OR%20%22autonomous%22%20OR%20%22physical%20AI%22%20OR%20DRIVE%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "analysis-platformer",
+    "type": "rss",
+    "config": {
+      "url": "https://www.platformer.news/feed",
+      "limit": 10
+    }
+  },
+  {
+    "name": "analysis-one-useful-thing",
+    "type": "rss",
+    "config": {
+      "url": "https://www.oneusefulthing.org/feed",
+      "limit": 5
+    }
+  },
+  {
+    "name": "analysis-import-ai",
+    "type": "rss",
+    "config": {
+      "url": "https://jack-clark.net/feed/",
+      "limit": 5
+    }
+  },
+  {
+    "name": "av-mobileye",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Amobileye.com%20%28robotaxi%20OR%20autonomous%20OR%20ADAS%20OR%20SuperVision%20OR%20Chauffeur%20OR%20partnership%20OR%20robotics%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "av-waymo",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Awaymo.com%20%28robotaxi%20OR%20safety%20OR%20autonomous%20OR%20blog%20OR%20research%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "av-nhtsa",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Anhtsa.gov%20%28%22automated%20driving%22%20OR%20%22self-driving%22%20OR%20ADAS%20OR%20recall%20OR%20investigation%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "reuters-ai-auto",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Areuters.com%20%28AI%20OR%20robotics%20OR%20Tesla%20OR%20Waymo%20OR%20Mobileye%20OR%20robotaxi%20OR%20%22autonomous%20driving%22%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 15
+    }
+  },
+  {
+    "name": "axios-ai-mobility",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Aaxios.com%20%28AI%20OR%20robotics%20OR%20Tesla%20OR%20Waymo%20OR%20robotaxi%20OR%20%22autonomous%20driving%22%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "premium-tech-business",
+    "type": "rss",
+    "enabled": false,
+    "comment": "停用：來源全為付費牆站（theinformation/bloomberg），付費牆過濾後必為空",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%28site%3Atheinformation.com%20OR%20site%3Abloomberg.com%29%20%28AI%20OR%20robotics%20OR%20autonomous%20OR%20Tesla%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "robotics-ieee-spectrum",
+    "type": "rss",
+    "config": {
+      "url": "https://spectrum.ieee.org/feeds/topic/robotics.rss",
+      "limit": 10
+    }
+  },
+  {
+    "name": "tech-techmeme",
+    "type": "rss",
+    "config": {
+      "url": "https://www.techmeme.com/feed.xml",
+      "limit": 20,
+      "extract_source_link": true
+    }
+  },
+  {
+    "name": "people-ai-leaders",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%28%22Jensen%20Huang%22%20OR%20%22Dario%20Amodei%22%20OR%20%22Demis%20Hassabis%22%20OR%20%22Amnon%20Shashua%22%20OR%20%22Andrej%20Karpathy%22%20OR%20%22Jim%20Fan%22%29&hl=en-US&gl=US&ceid=US:en",
+      "limit": 15
+    }
+  },
   {
     "name": "rss-hn-frontpage",
     "type": "rss",
     "enabled": false,
     "comment": "停用：與 hackernews-top 高度重複",
-    "config": { "url": "https://hnrss.org/frontpage", "limit": 10 }
+    "config": {
+      "url": "https://hnrss.org/frontpage",
+      "limit": 10
+    }
   },
-
   {
     "name": "cards-reddit-sportscards",
     "type": "rss",
-    "config": { "url": "https://www.reddit.com/r/sportscards/top/.rss?t=day", "limit": 10 }
+    "config": {
+      "url": "https://www.reddit.com/r/sportscards/top/.rss?t=day",
+      "limit": 10
+    }
   },
   {
     "name": "cards-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%E7%90%83%E5%93%A1%E5%8D%A1%20OR%20Topps%20OR%20Panini%20OR%20PSA%20%E5%8D%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 10 }
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%E7%90%83%E5%93%A1%E5%8D%A1%20OR%20Topps%20OR%20Panini%20OR%20PSA%20%E5%8D%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+      "limit": 10
+    }
   },
   {
     "name": "automotive-cockpit-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%E6%99%BA%E6%85%A7%E5%BA%A7%E8%89%99%20OR%20%E8%BB%8A%E7%94%A8%E5%BA%A7%E8%89%99%20OR%20%22in-vehicle%20infotainment%22%20OR%20%E8%BB%8A%E8%BC%89%E8%B3%87%E8%A8%8A%E5%A8%9B%E6%A8%82&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 20 }
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%E6%99%BA%E6%85%A7%E5%BA%A7%E8%89%99%20OR%20%E8%BB%8A%E7%94%A8%E5%BA%A7%E8%89%99%20OR%20%22in-vehicle%20infotainment%22%20OR%20%E8%BB%8A%E8%BC%89%E8%B3%87%E8%A8%8A%E5%A8%9B%E6%A8%82&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+      "limit": 20
+    }
   },
   {
     "name": "newservice-google-news",
     "comment": "收窄：只抓真正爆紅 / 突破型新產品，不抓一般創業新聞",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%28%22went%20viral%22%20OR%20%22fast-growing%20app%22%20OR%20%22breakout%20app%22%20OR%20%22consumer%20AI%20app%22%29%20launch&hl=en-US&gl=US&ceid=US:en", "limit": 8 }
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%28%22went%20viral%22%20OR%20%22fast-growing%20app%22%20OR%20%22breakout%20app%22%20OR%20%22consumer%20AI%20app%22%29%20launch&hl=en-US&gl=US&ceid=US:en",
+      "limit": 8
+    }
   },
   {
     "name": "producthunt-feed",
     "type": "rss",
     "enabled": false,
-    "config": { "url": "https://www.producthunt.com/feed", "limit": 10 }
+    "config": {
+      "url": "https://www.producthunt.com/feed",
+      "limit": 10
+    }
   },
-
   {
     "name": "nba-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=NBA%20%E7%90%83%E5%93%A1%20OR%20%E4%BA%A4%E6%98%93%20OR%20%E8%B3%BD%E4%BA%8B&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 10 }
+    "config": {
+      "url": "https://news.google.com/rss/search?q=NBA%20%E7%90%83%E5%93%A1%20OR%20%E4%BA%A4%E6%98%93%20OR%20%E8%B3%BD%E4%BA%8B&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+      "limit": 10
+    }
   },
   {
     "name": "nba-espn",
     "type": "rss",
-    "config": { "url": "https://www.espn.com/espn/rss/nba/news", "limit": 5 }
+    "config": {
+      "url": "https://www.espn.com/espn/rss/nba/news",
+      "limit": 5
+    }
   },
   {
     "name": "yt-lex-fridman",
     "type": "rss",
-    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA", "limit": 5 }
+    "config": {
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA",
+      "limit": 5
+    }
   },
   {
     "name": "yt-ycombinator",
     "type": "rss",
-    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg", "limit": 5 }
+    "config": {
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCcefcZRL2oaA_uBNeo5UOWg",
+      "limit": 5
+    }
   },
   {
     "name": "yt-a16z",
     "type": "rss",
-    "config": { "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA", "limit": 5 }
+    "config": {
+      "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UC9cn0TuPq4dnbTY-CBsm8XA",
+      "limit": 5
+    }
   },
   {
     "name": "tech-arstechnica",
     "type": "rss",
-    "config": { "url": "https://feeds.arstechnica.com/arstechnica/index", "limit": 5 }
+    "config": {
+      "url": "https://feeds.arstechnica.com/arstechnica/index",
+      "limit": 5
+    }
   },
   {
     "name": "tech-stratechery",
     "type": "rss",
-    "config": { "url": "https://stratechery.com/feed/", "limit": 10 }
+    "config": {
+      "url": "https://stratechery.com/feed/",
+      "limit": 10
+    }
   },
   {
     "name": "worldcup-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%E4%B8%96%E7%95%8C%E7%9B%83%E8%B6%B3%E7%90%83%20OR%20FIFA%20World%20Cup%20OR%20%E5%9C%8B%E9%9A%9B%E8%B6%B3%E7%B8%BD&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 5 }
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%E4%B8%96%E7%95%8C%E7%9B%83%E8%B6%B3%E7%90%83%20OR%20FIFA%20World%20Cup%20OR%20%E5%9C%8B%E9%9A%9B%E8%B6%B3%E7%B8%BD&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+      "limit": 5
+    }
   },
   {
     "name": "bookreview-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=%E6%96%B0%E6%9B%B8%20%E6%9B%B8%E8%A9%95%20OR%20%E8%AE%80%E5%BE%8C%E5%BF%83%E5%BE%97%20OR%20%E6%9A%A2%E9%8A%B7%E6%9B%B8&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 8 }
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%E6%96%B0%E6%9B%B8%20%E6%9B%B8%E8%A9%95%20OR%20%E8%AE%80%E5%BE%8C%E5%BF%83%E5%BE%97%20OR%20%E6%9A%A2%E9%8A%B7%E6%9B%B8&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+      "limit": 8
+    }
   },
   {
     "name": "tvstreaming-google-news",
     "type": "rss",
-    "config": { "url": "https://news.google.com/rss/search?q=Netflix%20%E6%96%B0%E5%8A%87%20OR%20Apple%20TV%20%E5%BD%B1%E9%9B%86%20OR%20%E4%B8%B2%E6%B5%81%20%E6%96%B0%E4%B8%8A%E6%9E%B6%20%E8%A9%95%E5%83%B9&hl=zh-TW&gl=TW&ceid=TW:zh-Hant", "limit": 5 }
+    "config": {
+      "url": "https://news.google.com/rss/search?q=Netflix%20%E6%96%B0%E5%8A%87%20OR%20Apple%20TV%20%E5%BD%B1%E9%9B%86%20OR%20%E4%B8%B2%E6%B5%81%20%E6%96%B0%E4%B8%8A%E6%9E%B6%20%E8%A9%95%E5%83%B9&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+      "limit": 5
+    }
   },
   {
     "name": "rss-theverge",
     "type": "rss",
-    "config": { "url": "https://www.theverge.com/rss/index.xml", "limit": 10 }
+    "config": {
+      "url": "https://www.theverge.com/rss/index.xml",
+      "limit": 10
+    }
   },
   {
     "name": "rss-techcrunch",
     "type": "rss",
-    "config": { "url": "https://techcrunch.com/feed/", "limit": 5 }
+    "config": {
+      "url": "https://techcrunch.com/feed/",
+      "limit": 5
+    }
+  },
+  {
+    "name": "kol-addy-osmani",
+    "type": "rss",
+    "config": {
+      "url": "https://addyosmani.com/rss.xml",
+      "limit": 10
+    }
+  },
+  {
+    "name": "kol-martin-fowler",
+    "type": "rss",
+    "config": {
+      "url": "https://martinfowler.com/feed.atom",
+      "limit": 10
+    }
+  },
+  {
+    "name": "kol-charity-majors",
+    "type": "rss",
+    "config": {
+      "url": "https://charity.wtf/feed/",
+      "limit": 10
+    }
+  },
+  {
+    "name": "crypto-bitmex-blog",
+    "type": "rss",
+    "config": {
+      "url": "https://blog.bitmex.com/feed/",
+      "limit": 10
+    }
+  },
+  {
+    "name": "wechat-jiqizhixin",
+    "type": "rss",
+    "config": {
+      "url": "https://wechat2rss.xlab.app/feed/51e92aad2728acdd1fda7314be32b16639353001.xml",
+      "limit": 20
+    }
   }
 ]

@@ -482,7 +482,7 @@ async def deliver(
         session.commit()
         return md_path
 
-    if await _push_telegram(settings, http, views, footer, run_dt, title):
+    if await _push_telegram(settings, http, views, run_dt, title):
         digest.sent_at = run_dt
     for it in items:
         it.delivered = True
@@ -492,8 +492,12 @@ async def deliver(
     return md_path
 
 
-async def _push_telegram(settings, http, views, footer, run_dt, title) -> bool:
-    """每則各一條訊息 + 👍/👎 按鈕。回傳是否實際送出。"""
+async def _push_telegram(settings, http, views, run_dt, title) -> bool:
+    """每則各一條訊息 + 👍/👎 按鈕。回傳是否實際送出。
+
+    刻意不推 LLM 用量 footer——那是給對帳看的，主人不想在 Telegram 收到。
+    footer 仍寫進 markdown 檔，要查成本看那裡。
+    """
     if not (settings.telegram_bot_token and settings.telegram_chat_id and views):
         logger.warning("缺 Telegram 設定或無內容，略過推送")
         return False
@@ -502,29 +506,69 @@ async def _push_telegram(settings, http, views, footer, run_dt, title) -> bool:
     await tg.send(header)
     for view, block in zip(views, blocks):
         await tg.send(block, reply_markup=item_keyboard(view["id"]))
-    await tg.send(footer)
     return True
 
 
 # --------------------------------------------------------------------------- #
 # entrypoint
 # --------------------------------------------------------------------------- #
+def _is_preferred(item: Item, prefer: set[str]) -> bool:
+    return bool(prefer) and bool(item.source) and item.source.name in prefer
+
+
 def _select_candidates(session, settings: Settings, prof: dict) -> list[Item]:
-    """候選過濾：時效窗 + 付費牆 + profile 類別 + 個人相關度硬門檻（None 放行不誤殺）。"""
+    """候選過濾：時效窗 + 付費牆 + profile 類別 + 個人相關度硬門檻（None 放行不誤殺）。
+
+    prefer_sources 的來源豁免「類別」與「相關度」兩道門檻——那是主人指名的作者，
+    相關度模型不該替他否決（實測 Charity Majors 全被評 0 分、分類成 other）。
+    付費牆與時效窗仍然照擋。
+    """
+    prefer = set(prof.get("prefer_sources") or [])
     candidates = top_undelivered(session, 1000)
     fresh_cutoff = now_utc() - timedelta(days=settings.candidate_max_age_days)
     candidates = [c for c in candidates if c.first_seen_at and to_utc(c.first_seen_at) >= fresh_cutoff]
     # 通用防線：涵蓋 HN 等其他 adapter 直連付費站的條目（rss adapter 已在抓取階段先擋）
     candidates = [c for c in candidates if not is_paywalled(c.url)]
+
     allowed = prof["categories"]
     if allowed is not None:
         allowed_set = set(allowed)
-        candidates = [c for c in candidates if (c.category or "other") in allowed_set]
+        candidates = [
+            c for c in candidates
+            if (c.category or "other") in allowed_set or _is_preferred(c, prefer)
+        ]
+    floor = prof.get("min_personal_score", settings.min_personal_score)
     return [
         c for c in candidates
         if c.personal_relevance_score is None
-        or c.personal_relevance_score >= settings.min_personal_score
+        or c.personal_relevance_score >= floor
+        or _is_preferred(c, prefer)
     ]
+
+
+def _prefer_sources_first(candidates: list[Item], prefer: list[str] | None,
+                          max_preferred: int = 3) -> list[Item]:
+    """把指定來源的候選提到最前面（各自維持原本的分數排序）。
+
+    深度長文常常是幾週前發的，時效半衰期會把分數壓到當天短新聞之下；
+    用來源白名單保證「有洞見的長文」先被選走，不足再用分數補。
+    """
+    if not prefer:
+        return candidates
+    names = set(prefer)
+    preferred = [c for c in candidates if c.source and c.source.name in names]
+    rest = [c for c in candidates if not (c.source and c.source.name in names)]
+
+    # 優先區每位作者最多 1 篇——否則某位 KOL 的存量會一次洗掉整個優先區
+    head, spare, seen = [], [], set()
+    for c in preferred:
+        if len(head) < max_preferred and c.source.name not in seen:
+            seen.add(c.source.name)
+            head.append(c)
+        else:
+            spare.append(c)
+    # 限額：不讓 KOL 佔滿整份 digest，留位子給當天真正重要的東西
+    return head + rest + spare
 
 
 def _persist_stage(session_factory, results, settings: Settings) -> int:
@@ -557,9 +601,13 @@ async def _deliver_stage(session_factory, settings, http, profile, enrich_info, 
         candidates = await drop_duplicate_events(
             session, settings, provider, _select_candidates(session, settings, prof)
         )
+        candidates = _prefer_sources_first(
+            candidates, prof.get("prefer_sources"), prof.get("max_preferred", 3)
+        )
         top = select_diverse(
             candidates,
-            prof["top_n"] or settings.top_n, settings.max_per_category,
+            prof["top_n"] or settings.top_n,
+            prof.get("max_per_category", settings.max_per_category),
             min_per_category=prof.get("min_per_category", 0),
         )
         if not top:

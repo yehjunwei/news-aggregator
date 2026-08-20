@@ -32,7 +32,8 @@ CATEGORY_WEIGHTS = {
     "holdings": MID,
     "ai_application": MID,
     "ai_paper": MID,
-    "tech_feature": MID,
+    "tech_feature": HIGH,   # 深度長文是主人明確要的,權重從 MID 提到 HIGH
+    "crypto": MID,
     "world_cup": MID,
     "book_review": MID,
     "tv_streaming": MID,

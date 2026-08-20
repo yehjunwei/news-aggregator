@@ -15,6 +15,7 @@ import asyncio
 import logging
 
 from . import pipeline
+from .profiles import PROFILES
 from .config import get_settings
 from .db.session import init_db, make_engine
 
@@ -63,7 +64,7 @@ def main() -> None:
     parser.add_argument(
         "--profile",
         default="all",
-        choices=["all", "morning", "evening"],
+        choices=list(PROFILES),
         help="推送時段 profile（morning=專業資訊 / evening=輕鬆閱讀）",
     )
     parser.add_argument("-v", "--verbose", action="store_true")

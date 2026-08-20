@@ -4,7 +4,7 @@
 
 - 執行環境：Python 3.12 + [uv](https://docs.astral.sh/uv/)
 - 排程：openclaw gateway cron，每天台北 **06:30（晨間·專業資訊）** 與 **20:00（晚間·輕鬆閱讀）** 各推 20 則（每主題保底 2 則）
-- 位置：`/home/tony/.openclaw/workspace/scripts/news-aggregator/`
+- 位置：`/home/tony/.openclaw/workspace-cio/scripts/news-aggregator/`
 
 ---
 
@@ -39,7 +39,7 @@ poll 回饋 → seed sources → fetch → persist+dedup → enrich(LLM＋niche�
 | **seed** | `pipeline.build_source_entries` + `seed_sources` | 合併「`config/sources.json`（依 profile 平台開關過濾）＋ `config/profile.json` 展開的個人化來源」upsert 進 DB `sources`（保留既有 etag/last_modified），並**自動停用不在當次定義內的孤兒來源** |
 | **fetch** | `sources/*` + `core/http` | 各來源**並發**抓取，帶 ETag/Last-Modified 條件式請求；retry + per-host rate limit |
 | **persist + dedup** | `pipeline.persist_results` + `core/dedup` | 三層去重：①`(source, external_id)` ②canonical URL / content hash ③標題相似度（rapidfuzz）。新項目寫 `items`；既有項目只追加一筆 `item_metrics`（熱度時序） |
-| **enrich** | `enrich/llm` + `enrich/classify` | 只對「未推送且未加值」項目，**批次**呼叫 LLM 回傳 JSON：category、繁中標題、N 句摘要、why_relevant、**預測點開機率的相關度 0–100**、`technical_nicheness`。當場折算 `relevance −= 0.5 × nicheness`（壓低 niche/玩具型內容），存回 `personal_relevance_score`。並把最近 👍/👎 的標題當 few-shot 範例餵回 prompt。失敗容錯（略過不中斷）。Gemini 偶發 geo-400（Google 誤判出口 IP 地區，`User location is not supported`）在 `enrich/llm.py` 內對單一請求最多重試 4 次（間隔 2·attempt 秒）再切 OpenAI 備援；重試與切換皆 debug 級不進 stderr（cron announce 會把 stderr 當錯誤回報），**僅備援也失敗時印一行 warning** |
+| **enrich** | `enrich/llm` + `enrich/classify` | 只對「未推送且未加值」項目，**批次**呼叫 LLM 回傳 JSON：category、繁中標題、N 句摘要、why_relevant、**預測點開機率的相關度 0–100**、`technical_nicheness`。當場折算 `relevance −= 0.5 × nicheness`（壓低 niche/玩具型內容），存回 `personal_relevance_score`。並把最近 👍/👎 的標題當 few-shot 範例餵回 prompt。失敗容錯（略過不中斷）。geo-400（`User location is not supported`）的根因是 **IPv6**：Google 沒把本機 IPv6（Linode 東京 `2400:8902::/32`，whois 掛著 JP/ZZ/US 三個矛盾國碼）登記為日本，走 IPv6 一律被擋、IPv4 正常。系統層已於 `/etc/gai.conf` 設 `precedence ::ffff:0:0/96  100` 讓 IPv4 優先，**但本專案的 async httpx 不吃這個設定**——`anyio/_core/_sockets.py:219` 的 Happy Eyeballs 會主動把 IPv6 重排到第一順位，蓋掉 `getaddrinfo` 的排序（同環境實測：sync httpx 200、async httpx 400）。連線族選擇屬系統職責，故程式碼**刻意不指定 IPv4/IPv6**；已於系統層停用 eth0 的 IPv6（`/etc/sysctl.d/99-disable-eth0-ipv6.conf`），anyio 沒得重排就自然走 IPv4。2026-08-20 dry-run 驗證：async httpx 5/5 全 200、digest footer 只標主用 model（無「＋備援」字樣），OpenAI 備援零觸發。下方重試與備援僅作休眠保險。重試與切換皆 debug 級不進 stderr（cron announce 會把 stderr 當錯誤回報），**僅備援也失敗時印一行 warning** |
 | **score** | `scoring/engine` | `final = w_interest × (relevance/100) × (1+velocity) × recency_decay`，寫回 `items.final_score` |
 | **硬門檻過濾** | `pipeline.run` | 排序前先丟掉 ①超過 `CANDIDATE_MAX_AGE_DAYS` 天才抓進來的舊 backlog ②`relevance < MIN_PERSONAL_SCORE` 的低分項目。則數因此隨「真正想看的量」浮動，不湊滿 `TOP_N` |
 | **rank** | `pipeline.select_diverse` | 過門檻的候選**先每類別保底 `min_per_category`、再按分數補名額（受每類別上限約束）**，兼顧冷門主題曝光與避免單一類別洗版 |
@@ -63,7 +63,7 @@ SQLite（預設 `data/news.db`），SQLAlchemy 2.0，Alembic 管理 migration。
 ## 安裝與使用
 
 ```bash
-cd /home/tony/.openclaw/workspace/scripts/news-aggregator
+cd /home/tony/.openclaw/workspace-cio/scripts/news-aggregator
 uv sync --extra dev
 cp .env.example .env          # 金鑰可留空，會自動從 openclaw credentials 補齊
 ```
@@ -99,7 +99,7 @@ uv run alembic revision --autogenerate -m "..."  # 改 models 後產生新版本
 | `LLM_PROVIDER` | `gemini` | `gemini` 或 `openai` |
 | `LLM_ENABLED` | `true` | 設 `false` 完全跳過 LLM（仍會以原標題、相關度預設 50 推送） |
 | `GEMINI_API_KEY` | — | 留空則自動從 credentials 補 |
-| `GEMINI_MODEL` | `gemini-flash-lite-latest` | ⚠️ `gemini-2.0-flash` 已停用會 404；可用 `gemini-flash-latest` / `gemini-2.5-flash` |
+| `GEMINI_MODEL` | 取自全域設定的 `gemini_quick` | **留空即讀 `~/.openclaw/config/models.json`**（單一來源；本專案是高頻批次摘要，故取 quick 那顆而非 deep，單價也一起帶進 `PRICING`，不必再手動同步價目）。此處填值則覆寫全域。⚠️ 讀不到全域檔會直接拋錯，不會靜默用舊 model。`gemini-2.0-flash` 已停用會 404 |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-5.4-mini` | 切到 OpenAI 時用；**有 key 時也自動當 Gemini geo-400 的備援**（`FallbackProvider`：Gemini 重試耗盡→該次改走 OpenAI，恢復即回歸）。備援有用量時 digest footer 顯示 `主用＋備援 <model>`，費用兩邊各按各的單價加總 |
 | `LLM_SUMMARY_SENTENCES` | `3` | **摘要句數**（你要的「N 句」） |
 | `LLM_BATCH_SIZE` | `8` | 每次 LLM 呼叫處理幾則（越大越省呼叫數，但單次 prompt 越長） |

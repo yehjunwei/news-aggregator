@@ -27,6 +27,7 @@ CATEGORIES = [
     "ai_application", # AI 應用一般新聞
     "ai_paper",       # AI 論文（小幅 benchmark）
     "tech_feature",   # 科技深度長文 / 產業觀點分析
+    "crypto",         # 加密貨幣 / DeFi / 鏈上生態
     "world_cup",      # 世界盃足球賽
     "book_review",    # 新書書評 / 讀後心得 / 暢銷書
     "tv_streaming",   # Netflix / Apple TV 等串流新劇評價

@@ -48,20 +48,54 @@ class Preferences:
         return self.platforms.get(platform, True)
 
 
+HOLDINGS_FILE = Path("/home/tony/.openclaw/shared/data/stocks.json")
+
+
+def _holdings_tickers() -> list[Ticker]:
+    """持股清單以 shared/data/stocks.json 為準。
+
+    profile.json 手寫的 tickers 會過期——2026-08 就發現 AAPL 早就不持有，卻還在
+    製造蘋果新聞（tickers-news 用它組 Google News 查詢）又替它加分（watchlist_block
+    叫 LLM 提到就加分），一則蘋果新聞因此拿到 85 分擠進每日 5 則。
+
+    ponytail: ETF 靠名稱含「ETF」判斷跳過——VOO/QQQM/009816 在新聞裡搜不到有意義的
+    東西,只會製造雜訊。哪天有不叫 ETF 的 ETF 再改成看代號清單。
+    """
+    try:
+        data = json.loads(HOLDINGS_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("讀取持股清單失敗：%s", exc)
+        return []
+    out: dict[str, Ticker] = {}
+    for market in ("us", "tw"):
+        for h in data.get(market, []):
+            name = h.get("name") or h.get("ticker", "")
+            if "ETF" in name.upper():
+                continue
+            symbol = (h.get("ticker") or "").split(".")[0]   # 2330.TW -> 2330
+            if symbol:
+                out.setdefault(symbol, Ticker(symbol, name))
+    return list(out.values())
+
+
 def load_preferences(path) -> Preferences:
-    """讀 profile.json -> Preferences；不存在 / 壞 JSON 回傳空偏好（不中斷流程）。"""
+    """讀 profile.json -> Preferences；不存在 / 壞 JSON 回傳空偏好（不中斷流程）。
+
+    tickers 一律由 stocks.json 推導,profile.json 的 tickers 只當「額外想追但沒持有」的補充。
+    """
     if not path or not Path(path).exists():
-        return Preferences()
+        return Preferences(tickers=_holdings_tickers())
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("讀取 profile 失敗：%s", exc)
-        return Preferences()
+        return Preferences(tickers=_holdings_tickers())
     people = [Person(p["name"], p.get("x_handle")) for p in data.get("people", []) if p.get("name")]
-    tickers = [
-        Ticker(t["symbol"], t.get("name") or t["symbol"])
-        for t in data.get("tickers", []) if t.get("symbol")
-    ]
+    tickers = {t.symbol: t for t in _holdings_tickers()}
+    for t in data.get("tickers", []):          # profile.json 只補「想追但沒持有」的
+        if t.get("symbol"):
+            tickers.setdefault(t["symbol"], Ticker(t["symbol"], t.get("name") or t["symbol"]))
+    tickers = list(tickers.values())
     topics = [t for t in data.get("topics", []) if t]
     return Preferences(people, tickers, topics, data.get("platforms") or {})
 
