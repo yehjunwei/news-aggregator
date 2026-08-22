@@ -168,22 +168,6 @@
     }
   },
   {
-    "name": "cards-reddit-sportscards",
-    "type": "rss",
-    "config": {
-      "url": "https://www.reddit.com/r/sportscards/top/.rss?t=day",
-      "limit": 10
-    }
-  },
-  {
-    "name": "cards-google-news",
-    "type": "rss",
-    "config": {
-      "url": "https://news.google.com/rss/search?q=%E7%90%83%E5%93%A1%E5%8D%A1%20OR%20Topps%20OR%20Panini%20OR%20PSA%20%E5%8D%A1&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
-      "limit": 10
-    }
-  },
-  {
     "name": "automotive-cockpit-google-news",
     "type": "rss",
     "config": {
@@ -343,6 +327,46 @@
     "config": {
       "url": "https://wechat2rss.xlab.app/feed/51e92aad2728acdd1fda7314be32b16639353001.xml",
       "limit": 20
+    }
+  },
+  {
+    "name": "cards-industry-en",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=%22sports%20cards%22%20(market%20OR%20auction%20OR%20record%20OR%20PSA%20OR%20Topps%20OR%20Panini%20OR%20Fanatics)&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "cards-cllct",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Acllct.com%20cards&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "cards-cardlines",
+    "type": "rss",
+    "config": {
+      "url": "https://cardlines.com/feed/",
+      "limit": 10
+    }
+  },
+  {
+    "name": "cards-scd",
+    "type": "rss",
+    "config": {
+      "url": "https://news.google.com/rss/search?q=site%3Asportscollectorsdaily.com&hl=en-US&gl=US&ceid=US:en",
+      "limit": 10
+    }
+  },
+  {
+    "name": "cards-reddit-basketball",
+    "type": "rss",
+    "config": {
+      "url": "https://www.reddit.com/r/basketballcards/top/.rss?t=day",
+      "limit": 8
     }
   }
 ]
