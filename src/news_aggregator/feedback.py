@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from sqlalchemy import select
 
@@ -31,16 +32,15 @@ def _write_offset(n: int) -> None:
 
 
 def _parse(data: str) -> tuple[int, int] | None:
-    """'fb:<item_id>:up|down' -> (item_id, +1|-1)；格式不符回 None。"""
-    parts = (data or "").split(":")
-    if len(parts) != 3 or parts[0] != "fb":
+    """從字串擷取 'fb:<item_id>:up|down' -> (item_id, +1|-1)；找不到回 None。
+
+    用 search 而非全字串比對：gateway 把按鈕 callback 轉成文字給 agent 時
+    會帶前綴（如 'callback_data: fb:123:up'），原文直接餵進來也要能解析。
+    """
+    m = re.search(r"fb:(\d+):(up|down)\b", data or "")
+    if m is None:
         return None
-    try:
-        item_id = int(parts[1])
-    except ValueError:
-        return None
-    signal = {"up": 1, "down": -1}.get(parts[2])
-    return (item_id, signal) if signal is not None else None
+    return int(m.group(1)), 1 if m.group(2) == "up" else -1
 
 
 def record_feedback(session, data: str) -> str:

@@ -11,6 +11,10 @@ def test_parse_valid_and_invalid():
     assert _parse("nope") is None
     assert _parse("fb:x:up") is None
     assert _parse("") is None
+    # gateway 轉文字會帶前綴，原文直接餵也要能解析
+    assert _parse("callback_data: fb:15023:up") == (15023, 1)
+    assert _parse("callback_data: fb:8:down") == (8, -1)
+    assert _parse("fb:7:downtown") is None
 
 
 def _item(session, ext, title, fb=None):

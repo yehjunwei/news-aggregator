@@ -30,7 +30,10 @@ def _names(entries):
     return {e["name"] for e in entries}
 
 
-def test_load_full(tmp_path):
+def test_load_full(tmp_path, monkeypatch):
+    # tickers 會從真實 stocks.json 推導，測試隔離掉才不會隨持股變動而壞
+    from news_aggregator import preferences as prefs_mod
+    monkeypatch.setattr(prefs_mod, "_holdings_tickers", lambda: [])
     prefs = load_preferences(_write(tmp_path, _FULL))
     assert [p.name for p in prefs.people] == ["Elon Musk", "No Handle"]
     assert prefs.tickers[0].symbol == "TSLA"
