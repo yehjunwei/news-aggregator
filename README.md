@@ -250,7 +250,8 @@ final = w_interest × (relevance / 100) × (1 + velocity_boost) × recency_decay
 每則推送底下有 **👍 想看更多 / 👎 不感興趣** 兩顆按鈕（Telegram inline keyboard，私聊收 reaction 不可靠，故用 callback）。
 
 - 點按 → 下次批次開跑時 `feedback.poll_feedback` 以 `getUpdates` 收回，寫進 `items.feedback`（+1/−1）。`callback_data` 直接帶 item id，免對應表；offset 存 `data/tg_offset.txt` 避免重複處理。
-- **實務上 openclaw gateway 佔用同一個 bot token 的 long-poll**，callback 會被 gateway 搶走並以文字轉給 Telegram agent（可能帶前綴，如 `callback_data: fb:<id>:up`）。SOUL.md 已規定 agent 收到含此格式的訊息時執行 `cli feedback "<原文>"` 補記錄（主要路徑），`_parse` 會自行從原文擷取 `fb:<id>:up|down` 片段；`poll_feedback` 保留當 gateway 停用時的備援。
+- **實務上 openclaw gateway 佔用同一個 bot token 的 long-poll**，callback 一定會被 gateway 收走。現在的主要路徑是 openclaw local plugin **`news-fb`**（原始碼 `~/.openclaw/scripts/news-fb-plugin/`，安裝在 `~/.openclaw/extensions/news-fb/`）：它註冊 `channel=telegram, namespace=fb` 的 interactive handler，直接用 `node:sqlite` 寫 `items.feedback`，並把該則按鈕改成「✅ 已記錄」。**全程不喚醒 agent**，所以按下去 1 秒內就有回應、連按多則都記得到、也不花 token。
+- 備援（依序）：plugin 沒載入時 gateway 會把 callback 當文字轉給 cio agent（可能帶前綴 `callback_data: fb:<id>:up`），SOUL.md 規定跑 `cli feedback "<原文>"`；gateway 整個停用時才輪到 `poll_feedback` 的 `getUpdates`。
 - enrich 時，`feedback.feedback_examples` 撈最近讚/倒讚的標題，當 **few-shot 範例**塞進排序 prompt，讓 LLM 自己歸納偏好。**不訓練模型、不用 embedding、不用權重表**——回饋愈多，命中率愈高。
 - 設計取捨：來源/類別只負責召回，**per-item 相關度是唯一閘門**，不另設來源或類別配額。
 
