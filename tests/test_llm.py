@@ -113,16 +113,49 @@ async def test_fallback_uses_backup_on_geo_400(caplog):
     assert not caplog.records
 
 
-async def test_fallback_propagates_non_geo_errors():
+def _http_error(code: int, text: str = "oops") -> "httpx.HTTPStatusError":
+    import httpx
+
+    req = httpx.Request("POST", "http://test")
+    resp = httpx.Response(code, request=req, text=text)
+    return httpx.HTTPStatusError(str(code), request=req, response=resp)
+
+
+@pytest.mark.parametrize("exc_factory, expected", [
+    (lambda: _http_error(401), True),           # 金鑰失效
+    (lambda: _http_error(403), True),           # 權限/地區封鎖
+    (lambda: _http_error(429), True),           # 限流
+    (lambda: _http_error(500), True),           # provider 自己壞了
+    (lambda: _http_error(503), True),
+    (_geo_error, True),                          # Gemini geo-400
+    (lambda: _http_error(400), False),           # 一般 400 = prompt 問題，切了只是雙倍付費
+    (lambda: _http_error(404), False),
+    (lambda: _http_error(422), False),
+    (lambda: __import__("httpx").ConnectTimeout("timeout"), True),
+    (lambda: RuntimeError("boom"), False),
+])
+def test_should_failover(exc_factory, expected):
+    from news_aggregator.enrich.llm import _should_failover
+
+    assert _should_failover(exc_factory()) is expected
+
+
+async def test_fallback_uses_backup_on_provider_unavailable():
+    """401（key 失效）也要切備援——Gemini key 掛掉那次就是這個情境。"""
+    from news_aggregator.enrich.llm import FallbackProvider
+
+    primary = StubProvider(error=_http_error(401))
+    backup = StubProvider(result={"ok": True})
+    assert await FallbackProvider(primary, backup).complete_json("s", "u") == {"ok": True}
+    assert backup.calls == 1
+
+
+async def test_fallback_propagates_plain_400():
     import httpx
 
     from news_aggregator.enrich.llm import FallbackProvider
 
-    req = httpx.Request("POST", "http://test")
-    err = httpx.HTTPStatusError(
-        "503", request=req, response=httpx.Response(503, request=req, text="oops")
-    )
-    primary = StubProvider(error=err)
+    primary = StubProvider(error=_http_error(400))
     backup = StubProvider(result={})
     with pytest.raises(httpx.HTTPStatusError):
         await FallbackProvider(primary, backup).complete_json("s", "u")
@@ -182,3 +215,39 @@ def test_extract_json_failure_logs_ctx_and_dumps_full_text(caplog, monkeypatch, 
             _extract_json(truncated)
     assert "ctx=" in caplog.text and "被截斷" in caplog.text
     assert (tmp_path / "llm_bad_output.txt").read_text(encoding="utf-8") == truncated
+
+
+class _S:
+    """build_provider 用的最小 settings stub。"""
+
+    llm_enabled = True
+    gemini_model = "gemini-x"
+    openai_model = "gpt-x"
+
+    def __init__(self, provider, fallback, gemini_key="", openai_key=""):
+        self.llm_provider = provider
+        self.llm_fallback_provider = fallback
+        self.gemini_api_key = gemini_key
+        self.openai_api_key = openai_key
+
+
+def test_build_provider_wraps_primary_and_fallback():
+    from news_aggregator.enrich.llm import (
+        FallbackProvider, GeminiProvider, OpenAIProvider, build_provider,
+    )
+
+    p = build_provider(_S("openai", "gemini", gemini_key="g", openai_key="o"))
+    assert isinstance(p, FallbackProvider)
+    assert isinstance(p.primary, OpenAIProvider) and isinstance(p.backup, GeminiProvider)
+
+    # 對調 providers 區塊就整個反過來，不需改程式
+    p = build_provider(_S("gemini", "openai", gemini_key="g", openai_key="o"))
+    assert isinstance(p.primary, GeminiProvider) and isinstance(p.backup, OpenAIProvider)
+
+
+def test_build_provider_single_key_no_wrapper():
+    from news_aggregator.enrich.llm import GeminiProvider, NullProvider, build_provider
+
+    # 主 provider 沒金鑰時直接用備援，不該退成 NullProvider
+    assert isinstance(build_provider(_S("openai", "gemini", gemini_key="g")), GeminiProvider)
+    assert isinstance(build_provider(_S("openai", "gemini")), NullProvider)

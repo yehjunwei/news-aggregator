@@ -206,10 +206,28 @@ class OpenAIProvider:
                 await client.aclose()
 
 
-class FallbackProvider:
-    """主 provider 因 Gemini geo-400（重試耗盡）失敗時，改用備援 provider 完成該次呼叫。
+_GEO_ERR = "User location is not supported"
 
-    每次呼叫都先試主 provider，Google 恢復後自動回歸；其他錯誤原樣拋出。
+
+def _should_failover(exc: Exception) -> bool:
+    """只有「provider 不可用」才切備援。
+
+    一般 400（prompt/schema 有問題）不切——切了只是用兩家的錢失敗兩次。
+    """
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        if code in (401, 403, 429) or code >= 500:
+            return True
+        # Gemini geo-400：Google 誤判出口 IP 地區，屬於環境問題不是 prompt 問題
+        return code == 400 and _GEO_ERR in exc.response.text
+    # 連線失敗 / 逾時
+    return isinstance(exc, httpx.TransportError)
+
+
+class FallbackProvider:
+    """主 provider 不可用（401/403/429/5xx/連線失敗/geo-400）時，改用備援完成該次呼叫。
+
+    每次呼叫都先試主 provider，主 provider 恢復後自動回歸；其他錯誤原樣拋出。
     """
 
     def __init__(self, primary: LLMProvider, backup: LLMProvider):
@@ -244,16 +262,16 @@ class FallbackProvider:
     async def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
         try:
             return await self.primary.complete_json(system, user, schema=schema)
-        except httpx.HTTPStatusError as exc:
-            resp = exc.response
-            if resp.status_code != 400 or "User location is not supported" not in resp.text:
+        except Exception as exc:
+            if not _should_failover(exc):
                 raise
             # 切備援屬正常運作，不進 stderr；footer 會揭露備援用量
-            logger.debug("Gemini geo-400 重試耗盡，本次改用備援 %s", self.backup.model)
+            logger.debug("%s 不可用（%s），本次改用備援 %s",
+                         self.primary.model, type(exc).__name__, self.backup.model)
             try:
                 return await self.backup.complete_json(system, user, schema=schema)
             except Exception:
-                logger.warning("Gemini 被擋（geo-400），備援 %s 也失敗", self.backup.model)
+                logger.warning("%s 不可用，備援 %s 也失敗", self.primary.model, self.backup.model)
                 raise
 
 
@@ -269,18 +287,24 @@ class NullProvider:
         return {}
 
 
+def _make_provider(kind: str, settings, client) -> LLMProvider | None:
+    """建立指定 provider；沒金鑰回 None。"""
+    if kind == "openai" and settings.openai_api_key:
+        return OpenAIProvider(settings.openai_api_key, settings.openai_model, client)
+    if kind == "gemini" and settings.gemini_api_key:
+        return GeminiProvider(settings.gemini_api_key, settings.gemini_model, client)
+    return None
+
+
 def build_provider(settings, client: httpx.AsyncClient | None = None) -> LLMProvider:
+    """依全域設定的 primary → fallback 順序組裝（見 config/models.json 的 providers）。"""
     if not settings.llm_enabled:
         return NullProvider()
-    if settings.llm_provider == "openai" and settings.openai_api_key:
-        return OpenAIProvider(settings.openai_api_key, settings.openai_model, client)
-    if settings.gemini_api_key:
-        gemini = GeminiProvider(settings.gemini_api_key, settings.gemini_model, client)
-        if settings.openai_api_key:
-            # Gemini geo-400（Google 誤判出口 IP 地區）連續失敗窗口的自動備援
-            return FallbackProvider(
-                gemini, OpenAIProvider(settings.openai_api_key, settings.openai_model, client)
-            )
-        return gemini
+    primary = _make_provider(settings.llm_provider, settings, client)
+    backup = _make_provider(settings.llm_fallback_provider, settings, client)
+    if primary and backup:
+        return FallbackProvider(primary, backup)
+    if usable := primary or backup:
+        return usable
     logger.warning("找不到 LLM 金鑰，改用 NullProvider（不做分類/摘要）")
     return NullProvider()

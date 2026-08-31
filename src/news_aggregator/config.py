@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     )
 
     # --- LLM ---
-    llm_provider: str = "gemini"  # gemini | openai
+    # 留空時由全域 config/models.json 的 providers 區塊決定；.env 指定則優先
+    llm_provider: str = ""  # gemini | openai
+    llm_fallback_provider: str = ""  # 主 provider 不可用時接手
     llm_enabled: bool = True
     gemini_api_key: str = ""
     gemini_model: str = ""
@@ -104,6 +106,11 @@ _settings: Settings | None = None
 # news digest 是高頻批次摘要，屬 quick 級工作，故兩邊都取 quick
 _MODEL_MAP = {"gemini_model": "gemini_quick", "openai_model": "openai_quick"}
 
+# Settings 欄位 -> config/models.json 的 providers 區塊欄位
+_PROVIDER_MAP = {"llm_provider": "primary", "llm_fallback_provider": "fallback"}
+
+_VALID_PROVIDERS = ("gemini", "openai")
+
 
 def _merge_models(settings: Settings) -> Settings:
     """空著的 model 欄位改用全域 models.json。
@@ -111,7 +118,7 @@ def _merge_models(settings: Settings) -> Settings:
     與 _merge_credentials 不同，這裡讀不到就**拋錯不放行**：靜默沿用預設 model
     正是先前「以為改了其實沒改」的來源。要脫離全域設定就在 .env 明確指定。
     """
-    missing = [f for f in _MODEL_MAP if not getattr(settings, f)]
+    missing = [f for f in (*_MODEL_MAP, *_PROVIDER_MAP) if not getattr(settings, f)]
     if not missing:
         return settings
     path = Path(settings.models_file).expanduser()
@@ -119,15 +126,24 @@ def _merge_models(settings: Settings) -> Settings:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         raise RuntimeError(
-            f"讀不到全域 model 設定 {path}（{exc}）；"
-            "請確認檔案存在，或在 .env 明確指定 GEMINI_MODEL / OPENAI_MODEL"
+            f"讀不到全域 model 設定 {path}（{exc}）；請確認檔案存在，或在 .env 明確指定 "
+            "GEMINI_MODEL / OPENAI_MODEL / LLM_PROVIDER / LLM_FALLBACK_PROVIDER"
         ) from None
     updates = {}
     for field_name in missing:
-        model = (data.get(_MODEL_MAP[field_name]) or {}).get("model")
-        if not model:
-            raise RuntimeError(f"{path} 缺少 {_MODEL_MAP[field_name]}.model")
-        updates[field_name] = str(model)
+        if field_name in _MODEL_MAP:
+            model = (data.get(_MODEL_MAP[field_name]) or {}).get("model")
+            if not model:
+                raise RuntimeError(f"{path} 缺少 {_MODEL_MAP[field_name]}.model")
+            updates[field_name] = str(model)
+        else:
+            provider = (data.get("providers") or {}).get(_PROVIDER_MAP[field_name])
+            if provider not in _VALID_PROVIDERS:
+                raise RuntimeError(
+                    f"{path} 的 providers.{_PROVIDER_MAP[field_name]} 是 {provider!r}，"
+                    f"必須是 {' / '.join(_VALID_PROVIDERS)} 其中之一"
+                )
+            updates[field_name] = str(provider)
     return settings.model_copy(update=updates)
 
 

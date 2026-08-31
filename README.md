@@ -96,11 +96,12 @@ uv run alembic revision --autogenerate -m "..."  # 改 models 後產生新版本
 ### LLM（分類 / 摘要 / 評分）
 | 參數 | 預設 | 說明 |
 |------|------|------|
-| `LLM_PROVIDER` | `gemini` | `gemini` 或 `openai` |
+| `LLM_PROVIDER` | 取自全域設定的 `providers.primary` | `gemini` 或 `openai`。**留空即讀 `~/.openclaw/config/models.json` 的 `providers` 區塊**（單一來源）；填值則覆寫全域 |
+| `LLM_FALLBACK_PROVIDER` | 取自全域設定的 `providers.fallback` | 主 provider 不可用時接手的那家；同樣留空讀全域 |
 | `LLM_ENABLED` | `true` | 設 `false` 完全跳過 LLM（仍會以原標題、相關度預設 50 推送） |
 | `GEMINI_API_KEY` | — | 留空則自動從 credentials 補 |
 | `GEMINI_MODEL` | 取自全域設定的 `gemini_quick` | **留空即讀 `~/.openclaw/config/models.json`**（單一來源；本專案是高頻批次摘要，故取 quick 那顆而非 deep，單價也一起帶進 `PRICING`，不必再手動同步價目）。此處填值則覆寫全域。⚠️ 讀不到全域檔會直接拋錯，不會靜默用舊 model。`gemini-2.0-flash` 已停用會 404 |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-5.4-mini` | 切到 OpenAI 時用；**有 key 時也自動當 Gemini geo-400 的備援**（`FallbackProvider`：Gemini 重試耗盡→該次改走 OpenAI，恢復即回歸）。備援有用量時 digest footer 顯示 `主用＋備援 <model>`，費用兩邊各按各的單價加總 |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-5.4-mini` | 兩家都有 key 時自動組成 `FallbackProvider`（primary→fallback 依全域 `providers` 決定）。**切備援的條件**：`401 / 403 / 429 / 5xx / 連線失敗 / Gemini geo-400`；一般 `400` 視為 prompt 問題**不切**（切了只是雙倍付費）。每次呼叫都先試 primary，恢復即自動回歸。備援有用量時 digest footer 顯示 `主用＋備援 <model>`，費用兩邊各按各的單價加總 |
 | `LLM_SUMMARY_SENTENCES` | `3` | **摘要句數**（你要的「N 句」） |
 | `LLM_BATCH_SIZE` | `8` | 每次 LLM 呼叫處理幾則（越大越省呼叫數，但單次 prompt 越長） |
 
