@@ -65,6 +65,16 @@ PRICING.update(_load_shared_rates())
 # Google geo-400（誤判地區）單一請求的最大嘗試次數
 _GEO_RETRIES = 4
 
+# Gemini 原生 API 的預設 base（含 /v1beta）。走 LiteLLM 時由 settings.litellm_base_url
+# 補上同樣的後綴——proxy 也提供 Gemini 原生端點，payload 形狀完全相同。
+GOOGLE_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+
+
+def gemini_api_base(litellm_base_url: str = "") -> str:
+    """LiteLLM proxy 根位址 -> Gemini 原生 base；留空則回 Google 官方。"""
+    root = (litellm_base_url or "").rstrip("/")
+    return f"{root}/v1beta" if root else GOOGLE_API_BASE
+
 
 def _empty_usage() -> dict:
     return {"prompt": 0, "completion": 0, "total": 0}
@@ -123,14 +133,16 @@ def _dump_bad_output(text: str):
 
 
 class GeminiProvider:
-    def __init__(self, api_key: str, model: str = "gemini-3.7-flash", client: httpx.AsyncClient | None = None):
+    def __init__(self, api_key: str, model: str = "gemini-3.7-flash", client: httpx.AsyncClient | None = None,
+                 api_base: str = GOOGLE_API_BASE):
         self.api_key = api_key
         self.model = model
+        self.api_base = api_base.rstrip("/")
         self._client = client
         self.usage = _empty_usage()
 
     async def complete_json(self, system: str, user: str, schema: dict | None = None) -> dict:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        url = f"{self.api_base}/models/{self.model}:generateContent"
         gen_config: dict = {"temperature": 0.2, "responseMimeType": "application/json"}
         if schema:
             # 約束解碼：從結構上保證輸出為合法 JSON 且符合 schema
@@ -292,7 +304,8 @@ def _make_provider(kind: str, settings, client) -> LLMProvider | None:
     if kind == "openai" and settings.openai_api_key:
         return OpenAIProvider(settings.openai_api_key, settings.openai_model, client)
     if kind == "gemini" and settings.gemini_api_key:
-        return GeminiProvider(settings.gemini_api_key, settings.gemini_model, client)
+        return GeminiProvider(settings.gemini_api_key, settings.gemini_model, client,
+                              gemini_api_base(settings.litellm_base_url))
     return None
 
 

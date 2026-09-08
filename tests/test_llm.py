@@ -223,6 +223,7 @@ class _S:
     llm_enabled = True
     gemini_model = "gemini-x"
     openai_model = "gpt-x"
+    litellm_base_url = ""
 
     def __init__(self, provider, fallback, gemini_key="", openai_key=""):
         self.llm_provider = provider
@@ -251,3 +252,34 @@ def test_build_provider_single_key_no_wrapper():
     # 主 provider 沒金鑰時直接用備援，不該退成 NullProvider
     assert isinstance(build_provider(_S("openai", "gemini", gemini_key="g")), GeminiProvider)
     assert isinstance(build_provider(_S("openai", "gemini")), NullProvider)
+
+
+def test_gemini_api_base_defaults_to_google():
+    from news_aggregator.enrich.llm import GOOGLE_API_BASE, gemini_api_base
+
+    assert gemini_api_base("") == GOOGLE_API_BASE
+    assert gemini_api_base() == GOOGLE_API_BASE
+
+
+def test_gemini_api_base_uses_litellm_and_strips_slashes():
+    from news_aggregator.enrich.llm import gemini_api_base
+
+    assert gemini_api_base("https://p.example") == "https://p.example/v1beta"
+    assert gemini_api_base("https://p.example///") == "https://p.example/v1beta"
+
+
+def test_gemini_provider_builds_url_from_api_base():
+    from news_aggregator.enrich.llm import GeminiProvider, gemini_api_base
+
+    p = GeminiProvider("k", "gemini-3.7-flash", None, gemini_api_base("https://p.example"))
+    assert p.api_base == "https://p.example/v1beta"
+    # complete_json 組出來的 URL 形狀（與該函式內第一行同源）
+    assert f"{p.api_base}/models/{p.model}:generateContent" == (
+        "https://p.example/v1beta/models/gemini-3.7-flash:generateContent"
+    )
+
+
+def test_gemini_provider_defaults_to_google_when_base_absent():
+    from news_aggregator.enrich.llm import GOOGLE_API_BASE, GeminiProvider
+
+    assert GeminiProvider("k", "m").api_base == GOOGLE_API_BASE

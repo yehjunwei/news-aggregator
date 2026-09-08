@@ -16,6 +16,7 @@ MODELS_FILE = Path("~/.openclaw/config/models.json").expanduser()
 # credentials/api_keys.json -> Settings 欄位
 _CREDENTIAL_MAP = {
     "gemini_api_key": "gemini_api_key",
+    "litellm_base_url": "litellm_base_url",
     "openai_api_key": "openai_api_key",
     "telegram_bot_token": "telegram_bot_token",
     "telegram_chat_id": "telegram_chat_id",
@@ -37,6 +38,9 @@ class Settings(BaseSettings):
     llm_enabled: bool = True
     gemini_api_key: str = ""
     gemini_model: str = ""
+    # LiteLLM proxy 主機根位址（不含路徑）。留空＝直連 Google 官方端點。
+    # Gemini 原生 API 的路徑後綴由 enrich/llm.py 自己補，因為那是 API 方言、不是憑證的一部分
+    litellm_base_url: str = ""
     openai_api_key: str = ""
     openai_model: str = ""
     llm_summary_sentences: int = 3
