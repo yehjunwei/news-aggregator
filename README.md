@@ -69,6 +69,12 @@ cp .env.example .env          # 金鑰可留空，會自動從 openclaw credenti
 ```
 
 **金鑰優先序**：環境變數 / `.env` ＞ `credentials/api_keys.json`（`CREDENTIALS_FILE`）。
+
+**Gemini 走 LiteLLM proxy**（2026-09-01 起）：Google 官方 key 已失效，base 位址讀 credentials 的
+`litellm_base_url`（只存主機根位址，不含路徑）。本專案用 Gemini **原生** `generateContent` 端點，
+故後綴補 `/v1beta`（見 `enrich/llm.py` 的 `gemini_api_base()`）；openclaw gateway 走 `openai-completions`
+方言、後綴是 `/v1`——方言不同，所以只共用主機根位址。留空即直連 Google 官方端點。
+`responseSchema` 約束解碼經 proxy 實測正常。
 預設從 `/home/tony/.openclaw/credentials/api_keys.json` 補齊
 `GEMINI_API_KEY` / `OPENAI_API_KEY` / `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` / `GITHUB_TOKEN`。
 
@@ -238,6 +244,10 @@ final = w_interest × (relevance / 100) × (1 + velocity_boost) × recency_decay
 
 **硬門檻**（`pipeline.run`）：排序前先淘汰 ①`first_seen` 超過 `CANDIDATE_MAX_AGE_DAYS` 天的舊 backlog（避免未推送項目永久佔位）②`relevance < MIN_PERSONAL_SCORE` 的低分候選。這讓每日則數隨「真正想看的量」浮動，不為了湊 `TOP_N` 把 niche 內容塞進來。
 
+**`prefer_sources` 豁免**（`pipeline._select_candidates`）：profile 指名的 KOL 來源豁免「類別」與「相關度」兩道門檻——相關度模型常把這類長文評 0 分（實測 Charity Majors、Martin Fowler 全 0）。因為 `final_score = 類別權重 × 相關度 × …`，0 分相關度會讓 `final_score` 歸零，而召回用的 `top_undelivered` 帶 `final_score > 0` 且只取前 1000 名，這些文章連候選池都進不去、豁免形同虛設。因此 `_select_candidates` 會用 `undelivered_from_sources` 對這些來源**另撈一次**再併入候選（迴歸測試：`tests/test_candidates.py`）。
+
+**同事件去重**（`pipeline.drop_duplicate_events`）：用 LLM 把「同一具體事件、不同連結」分組；組內若含近 `CANDIDATE_MAX_AGE_DAYS` 天已推送過的項目，**整組候選丟棄**（不推同一事件的後續報導），否則只留分數最高的一則。連續大事件的日子這會大幅壓低則數——那是預期行為，不是漏推。
+
 **多元性**（`pipeline.select_diverse`）：過門檻的候選（按分數排序）後分三步挑選：
 1. **保底**：每個有貨的類別先保證至少 `min_per_category` 則（profile 設定，目前晨/晚皆為 `0`＝不強制保底；要讓冷門主題每天露出可調回 1–2）。
 2. **補名額**：名額按分數補，**每類別最多 `MAX_PER_CATEGORY` 則**，避免被 AI/HN 洗版。
@@ -299,7 +309,8 @@ uv run pytest -q
 
 涵蓋：去重正規化/相似度、評分各分支（含 niche 懲罰）、時間轉換、HN/RSS adapter（respx mock）、
 persist+dedup、classify 容錯與 few-shot 範例、多元性挑選、digest 渲染與 👍/👎 按鈕、
-回饋解析/套用（`test_feedback`）、官網 JSON 輸出與一年保留（`test_export`）。
+回饋解析/套用（`test_feedback`）、官網 JSON 輸出與一年保留（`test_export`）、
+候選池召回與 `prefer_sources` 豁免（`test_candidates`）。
 
 > **開發約定**：改動後務必 `uv run pytest -q` 全綠才算完成；單一 function 不超過 40 行（過長就抽 helper）；用不到的 function/檔案直接刪。
 

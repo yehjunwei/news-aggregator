@@ -285,6 +285,27 @@ def top_undelivered(session, n: int) -> list[Item]:
     )
 
 
+def undelivered_from_sources(session, names: set[str], n: int) -> list[Item]:
+    """指定來源的未推送項目，不看 final_score。
+
+    top_undelivered 的 `final_score > 0` 會把相關度被評 0 分的 KOL 長文整批砍掉
+    （Fowler／BitMEX 近一週 100% 是 0 分），而那正是 prefer_sources 豁免要救的對象。
+    """
+    return list(
+        session.scalars(
+            select(Item)
+            .join(Source)
+            .where(
+                Item.delivered.is_(False),
+                Item.enriched.is_(True),
+                Source.name.in_(names),
+            )
+            .order_by(Item.first_seen_at.desc())
+            .limit(n)
+        ).all()
+    )
+
+
 def select_diverse(
     items: list[Item],
     top_n: int,
@@ -525,6 +546,12 @@ def _select_candidates(session, settings: Settings, prof: dict) -> list[Item]:
     """
     prefer = set(prof.get("prefer_sources") or [])
     candidates = top_undelivered(session, 1000)
+    if prefer:  # 0 分的 KOL 文章擠不進 top_undelivered，另撈一次才輪得到下面的豁免
+        have = {c.id for c in candidates}
+        candidates += [
+            i for i in undelivered_from_sources(session, prefer, 200) if i.id not in have
+        ]
+        candidates.sort(key=lambda c: c.final_score or 0.0, reverse=True)
     fresh_cutoff = now_utc() - timedelta(days=settings.candidate_max_age_days)
     candidates = [c for c in candidates if c.first_seen_at and to_utc(c.first_seen_at) >= fresh_cutoff]
     # 通用防線：涵蓋 HN 等其他 adapter 直連付費站的條目（rss adapter 已在抓取階段先擋）
