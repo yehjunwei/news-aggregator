@@ -50,8 +50,9 @@ PROFILES: dict[str, dict] = {
             "kol-charity-majors",
             "rss-simonwillison",
             "crypto-bitmex-blog",
-            # "wechat-jiqizhixin" 2026-09-08 移出:有評分的 3 則全部 👎(具身模型/遊戲工程/UrbanGround),
-            # 走一般 78 門檻即可,不再豁免
+            "wechat-jiqizhixin",   # 微信公眾號「机器之心」,經 wechat2rss 鏡像。
+                                   # 2026-09-08 曾因 3/3 👎 移出,Tony 說有些文章他很喜歡,留著;
+                                   # n=3 不足以下結論,prefer_min_score 30 照樣擋低分短貼
         ],
     },
     "evening": {
