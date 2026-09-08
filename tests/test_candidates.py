@@ -54,3 +54,15 @@ def test_delivered_kol_is_not_recycled(session):
     session.commit()
     titles = {c.title for c in _select_candidates(session, Settings(), PROF)}
     assert titles == {"big news"}
+
+
+def test_prefer_min_score_blocks_kol_filler_but_keeps_real_posts(session):
+    _seed(session)
+    kol = session.query(Source).filter_by(name="kol-martin-fowler").one()
+    session.add(_item(kol, "k2", "Fowler long read", category="other",
+                      personal_relevance_score=50, final_score=0.2))
+    session.commit()
+    prof = {**PROF, "prefer_min_score": 30}
+    titles = {c.title for c in _select_candidates(session, Settings(), prof)}
+    # 0 分的 "Fowler on X" 被 30 門檻擋掉；50 分的長文照放；一般高分新聞不受影響
+    assert titles == {"Fowler long read", "big news"}

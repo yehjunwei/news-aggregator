@@ -565,12 +565,17 @@ def _select_candidates(session, settings: Settings, prof: dict) -> list[Item]:
             if (c.category or "other") in allowed_set or _is_preferred(c, prefer)
         ]
     floor = prof.get("min_personal_score", settings.min_personal_score)
-    return [
-        c for c in candidates
-        if c.personal_relevance_score is None
-        or c.personal_relevance_score >= floor
-        or _is_preferred(c, prefer)
-    ]
+    # KOL 豁免不是無條件：0–10 分的短貼（Quoting X、Creepy crawlies）也是 KOL 發的，
+    # 但 Tony 不會按讚。prefer_min_score 是給 KOL 的低門檻，擋掉這種填充物。
+    prefer_floor = prof.get("prefer_min_score", 0)
+
+    def keep(c):
+        score = c.personal_relevance_score
+        if score is None or score >= floor:
+            return True
+        return _is_preferred(c, prefer) and score >= prefer_floor
+
+    return [c for c in candidates if keep(c)]
 
 
 def _prefer_sources_first(candidates: list[Item], prefer: list[str] | None,
