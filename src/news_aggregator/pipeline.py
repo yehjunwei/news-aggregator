@@ -209,6 +209,7 @@ def _apply_enrichments(pending, enrichments: dict[int, dict]) -> int:
         it.summary = data["summary"]
         it.why_relevant = data["why_relevant"]
         it.personal_relevance_score = data["personal_relevance_score"]
+        it.career_score = data.get("career_score")
         it.enriched = True
         applied += 1
     return applied
@@ -575,7 +576,12 @@ def _select_candidates(session, settings: Settings, prof: dict) -> list[Item]:
             return True
         return _is_preferred(c, prefer) and score >= prefer_floor
 
-    return [c for c in candidates if keep(c)]
+    candidates = [c for c in candidates if keep(c)]
+    # career profile 的硬門檻：沒分數（舊資料、LLM 漏回）一律不推——寧可 0 則也不推錯
+    career_floor = prof.get("min_career_score")
+    if career_floor is not None:
+        candidates = [c for c in candidates if c.career_score is not None and c.career_score >= career_floor]
+    return candidates
 
 
 def _prefer_sources_first(candidates: list[Item], prefer: list[str] | None,

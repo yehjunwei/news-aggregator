@@ -9,7 +9,7 @@ from .models import Base
 
 # create_all 不會替既有資料表補欄位；列出後來才加的欄位，啟動時對既有 SQLite DB 補上。
 # ponytail: 個人用 SQLite 以 idempotent ALTER 取代 alembic（此 DB 非 alembic 管理）；欄位變多時加進這張表
-_ADDED_COLUMNS = {"items": {"feedback": "INTEGER"}}
+_ADDED_COLUMNS = {"items": {"feedback": "INTEGER", "career_score": "INTEGER"}}
 
 
 def make_engine(url: str) -> Engine:

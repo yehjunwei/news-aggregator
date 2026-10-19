@@ -136,3 +136,25 @@ def test_select_candidates_drops_paywalled_urls(session):
 
     picked = _select_candidates(session, _settings(), {"categories": None})
     assert [i.external_id for i in picked] == ["2"]
+
+
+def test_apply_enrichments_writes_career_score():
+    from news_aggregator.pipeline import _apply_enrichments
+
+    it = Item(id=1, title="t")
+    data = {"category": "automotive", "title_zh": "中", "summary": None, "why_relevant": None,
+            "personal_relevance_score": 60, "career_score": 85}
+    assert _apply_enrichments([it], {1: data}) == 1
+    assert it.career_score == 85 and it.enriched is True
+
+
+def test_init_db_adds_career_score_to_old_table():
+    from sqlalchemy import create_engine, inspect, text
+
+    from news_aggregator.db.session import init_db
+
+    engine = create_engine("sqlite://")
+    with engine.begin() as conn:  # 改版前的 items 表：沒有 career_score
+        conn.execute(text("CREATE TABLE items (id INTEGER PRIMARY KEY, title TEXT)"))
+    init_db(engine)
+    assert "career_score" in {c["name"] for c in inspect(engine).get_columns("items")}

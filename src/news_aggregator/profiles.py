@@ -55,6 +55,19 @@ PROFILES: dict[str, dict] = {
                                    # n=3 不足以下結論,prefer_min_score 30 照樣擋低分短貼
         ],
     },
+    "career": {
+        "label": "職涯精選",
+        # Tony 2026-10-10：週一到週五、一天 0 或 1 則，只推職涯相關（車用 AI agent／智慧座艙／OEM 導入 AI，
+        # 以及 AI 時代工程組織與主管角色變化）。定義在 enrich/classify.py 的 _CAREER。
+        # 職涯門檻取代個人相關度門檻；個人分數仍透過 final_score 決定當天哪則出線。
+        # 沒有 KOL 豁免：KOL 文章一樣要過職涯門檻。deep 保留不動，回滾就把 cron 改回 --profile deep。
+        "categories": None,
+        "top_n": 1,
+        "min_per_category": 0,
+        "max_per_category": 1,
+        "min_personal_score": 0,
+        "min_career_score": 70,
+    },
     "evening": {
         "label": "晚間精選 · 輕鬆閱讀",
         "categories": [

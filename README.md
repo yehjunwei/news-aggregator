@@ -278,25 +278,27 @@ final = w_interest × (relevance / 100) × (1 + velocity_boost) × recency_decay
 
 ## 排程
 
-由 openclaw gateway 管理，分**兩個時段**各推最多 20 則（過門檻才推，不湊數）：
+由 openclaw gateway 管理，**只有一個 job**（2026-10-10 起，Tony 決定 D-20261010-003）：
 
-| 時段 | 時間（台北） | Job ID | 指令 | 內容 |
-|------|------|--------|------|------|
-| 晨間 | 06:30 | `7a2662cd-3711-4a8e-a601-ecb350d25aaa` | `cli run --profile morning` | 專業 / 資訊類 |
-| 晚間 | 20:00 | `3609730a-2cbd-4218-9eac-82505dae2911` | `cli run --profile evening` | 輕鬆閱讀類 |
+| 時間（台北） | Job ID | 指令 | 內容 |
+|------|--------|------|------|
+| 週一到週五 10:30 | `34eb1f36-d403-4ec5-9b08-bab0465b7a27`（`weekday-career-news-1030`） | `cli run --profile career` | 職涯精選，**最多 1 則、可 0 則** |
 
-- 時段的類別分組定義在 `src/news_aggregator/profiles.py`（改 `categories` / `top_n` 即可調整）。
-- 已推送的項目標記 `delivered`，**晚間不會重複早上推過的**。
-- payload(`command`)：`uv run python -m news_aggregator.cli run --profile <p>`（cwd 為本專案）；script 自行推送 digest，cron announce 為完成回報（best-effort）。
+- **職涯精選**：enrich 時 LLM 在同一次呼叫多打一個 `career_relevance`（0–100，存 `items.career_score`），
+  只算兩類——① 車用 AI agent／智慧座艙／OEM 導入 AI ② AI 時代工程組織與主管角色變化（定義在
+  `classify.py` 的 `_CAREER`）。`career` profile 用 `min_career_score: 70` 當唯一門檻（沒分數一律不推），
+  個人相關度只透過 `final_score` 決定當天哪則出線；沒有 KOL 豁免。
+- 門檻校準（2026-10-10，用過去 3 週疑似職涯新聞重評）：智慧座艙／AI 改變工程師角色落在 70–90，
+  面板市場、電動車銷量、油耗法規、裁員、徵才廣告都 ≤20；聯發科座艙晶片 60（被擋）。
+- 回滾：cron 改回 `--profile deep`、排程 `30 10 * * *`。`deep`／`morning`／`evening` profile 都還在 `profiles.py`。
+- payload(`command`)：script 自行推送 digest，cron `delivery.mode=none`。
 
 ```bash
-# 手動觸發 / 查看
-openclaw cron run 7a2662cd-3711-4a8e-a601-ecb350d25aaa     # 晨間
-openclaw cron run 3609730a-2cbd-4218-9eac-82505dae2911     # 晚間
+# 手動觸發
+openclaw cron run 34eb1f36-d403-4ec5-9b08-bab0465b7a27
 
-# 本機手動測試（不推送）
-uv run python -m news_aggregator.cli dry-run --profile morning
-uv run python -m news_aggregator.cli dry-run --profile evening
+# 本機手動測試（不推送、不標 delivered；仍會 enrich 新抓的新聞並寫 digest 檔）
+uv run python -m news_aggregator.cli dry-run --profile career
 ```
 
 ---

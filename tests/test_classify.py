@@ -180,3 +180,18 @@ async def test_classify_batches():
     inputs = [{"id": i, "title": "t", "url": "u", "source": "s"} for i in range(20)]
     await classify_items(provider, inputs, batch_size=8)
     assert provider.calls == 3  # 8 + 8 + 4
+
+
+async def test_classify_career_relevance_clamped_or_none():
+    rows = [{"id": i, "category": "automotive", "personal_relevance_score": 50, "career_relevance": v}
+            for i, v in [(1, 150), (2, -5), (3, "abc"), (4, 72)]]
+    rows.append({"id": 5, "category": "automotive", "personal_relevance_score": 50})  # 缺欄位
+    out = await classify_items(FakeProvider({"results": rows}),
+                               [{"id": i, "title": "t", "url": "u", "source": "x"} for i in range(1, 6)])
+    assert [out[i]["career_score"] for i in range(1, 6)] == [100, 0, None, 72, None]
+
+
+def test_schema_requires_career_relevance():
+    item = RESPONSE_SCHEMA["properties"]["results"]["items"]
+    assert item["properties"]["career_relevance"] == {"type": "INTEGER"}
+    assert "career_relevance" in item["required"]

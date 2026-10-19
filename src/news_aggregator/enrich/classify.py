@@ -1,4 +1,4 @@
-"""用 LLM 對新聞做：分類、繁中標題、N 句摘要、why_relevant、personal_relevance_score。
+"""用 LLM 對新聞做：分類、繁中標題、N 句摘要、why_relevant、personal_relevance_score、career_relevance。
 
 批次呼叫以節省成本；對缺漏 / 失敗的批次採容錯（略過，不中斷）。
 """
@@ -51,7 +51,7 @@ def _content_thin(entry: dict) -> bool:
 
 _RESULT_FIELDS = [
     "id", "category", "title_zh", "summary",
-    "why_relevant", "personal_relevance_score", "technical_nicheness",
+    "why_relevant", "personal_relevance_score", "technical_nicheness", "career_relevance",
 ]
 
 # Gemini responseSchema（OpenAPI 3.0 子集）：約束解碼，從結構上保證合法 JSON 與合法 category
@@ -70,6 +70,7 @@ RESPONSE_SCHEMA = {
                     "why_relevant": {"type": "STRING"},
                     "personal_relevance_score": {"type": "INTEGER"},
                     "technical_nicheness": {"type": "INTEGER"},
+                    "career_relevance": {"type": "INTEGER"},
                 },
                 "required": _RESULT_FIELDS,
                 "propertyOrdering": _RESULT_FIELDS,
@@ -113,6 +114,22 @@ _INTEREST = (
 )
 
 
+# 職涯精選（career profile）的唯一門檻。Tony 2026-10-10 核定只算這兩類；
+# 跟 personal_relevance_score 分開打分，「想點開」不等於「跟職涯有關」。
+_CAREER = (
+    "career_relevance（0-100）：這則新聞對使用者「職涯」的直接相關程度。"
+    "使用者是科技公司的軟體處長，正在負責替 OEM 車廠做 In-Car AI Agent 專案，目標升到協理(VP)。"
+    "只有兩類算職涯相關：\n"
+    "1. 車用 AI agent / 智慧座艙 / 車載語音助理 / OEM 車廠導入生成式 AI 或 LLM"
+    "（產品發表、量產上車、車廠與 AI 公司合作、競品做法）\n"
+    "2. AI 時代工程組織與主管角色的變化（AI 如何改變工程團隊編制、開發流程、主管職責、"
+    "工程師與主管的評估方式）\n"
+    "其他一律 0-20 分，包括：一般 AI 模型或公司新聞（新模型、融資、財報）、與 AI 無關的汽車新聞"
+    "（電動車銷量、車價、自駕法規）、NBA、球員卡、加密貨幣、持股、純程式工具。"
+    "不要因為提到 AI 或汽車就給高分，要同時對上上面兩類其中之一的實質內容。"
+)
+
+
 def _examples_block(examples: dict | None) -> str:
     """把使用者最近讚/倒讚的標題當 few-shot 範例，讓模型歸納偏好。"""
     if not examples:
@@ -137,6 +154,7 @@ def _build_user(
 ) -> str:
     lines = [
         _INTEREST,
+        _CAREER,
         watchlist or "",
         _examples_block(examples),
         "",
@@ -147,7 +165,8 @@ def _build_user(
         f"\"why_relevant\": <一句話，指出新聞與使用者工作/產品/投資/生活的「具體」關係；"
         f"禁止使用「符合使用者對某領域的興趣」這類泛化句型>, "
         f"\"personal_relevance_score\": <0-100 整數，預測點開並閱讀的機率>, "
-        f"\"technical_nicheness\": <0-100 整數，越底層 / niche 越高>}}]}}",
+        f"\"technical_nicheness\": <0-100 整數，越底層 / niche 越高>, "
+        f"\"career_relevance\": <0-100 整數，依上面職涯定義>}}]}}",
         f"category 僅能是：{', '.join(CATEGORIES)}",
         "",
         "新聞清單：",
@@ -185,6 +204,10 @@ def _coerce_result(raw: dict) -> dict | None:
         niche = 0
     if score is not None:
         score = max(0, min(100, round(score - NICHE_PENALTY * niche)))
+    try:
+        career = max(0, min(100, int(raw.get("career_relevance"))))
+    except (TypeError, ValueError):
+        career = None  # 缺值/壞值不猜：career profile 會把 None 擋掉
     return {
         "id": item_id,
         "category": category,
@@ -192,6 +215,7 @@ def _coerce_result(raw: dict) -> dict | None:
         "summary": (raw.get("summary") or "").strip() or None,
         "why_relevant": (raw.get("why_relevant") or "").strip() or None,
         "personal_relevance_score": score,
+        "career_score": career,
     }
 
 

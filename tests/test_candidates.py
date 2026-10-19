@@ -66,3 +66,24 @@ def test_prefer_min_score_blocks_kol_filler_but_keeps_real_posts(session):
     titles = {c.title for c in _select_candidates(session, Settings(), prof)}
     # 0 分的 "Fowler on X" 被 30 門檻擋掉；50 分的長文照放；一般高分新聞不受影響
     assert titles == {"Fowler long read", "big news"}
+
+
+def test_career_profile_keeps_only_scored_career_items(session):
+    src = Source(name="tickers-news", type="rss", enabled=True)
+    session.add(src)
+    session.flush()
+    session.add_all([
+        _item(src, "c1", "in-car agent", category="automotive", personal_relevance_score=40,
+              career_score=80, final_score=0.4),
+        _item(src, "c2", "ev sales", category="automotive", personal_relevance_score=90,
+              career_score=50, final_score=0.9),
+        _item(src, "c3", "old item", category="ai_agents", personal_relevance_score=90,
+              career_score=None, final_score=0.9),  # 改版前 enrich 的舊資料
+    ])
+    session.commit()
+    career = {"categories": None, "min_personal_score": 0, "min_career_score": 70}
+    assert {c.title for c in _select_candidates(session, Settings(), career)} == {"in-car agent"}
+    # 沒設 min_career_score 的 profile 完全不受 career_score 影響
+    deep = {"categories": None, "min_personal_score": 0}
+    assert {c.title for c in _select_candidates(session, Settings(), deep)} == {
+        "in-car agent", "ev sales", "old item"}
