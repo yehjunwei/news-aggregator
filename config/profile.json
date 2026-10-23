@@ -22,5 +22,5 @@
     "reddit": true,
     "trending": true
   },
-  "_tickers_note": "持股由 shared/data/stocks.json 自動推導，這裡只放「想追蹤但沒持有」的標的"
+  "_tickers_note": "持股由 shared/agents_share_mem/stocks.json 自動推導，這裡只放「想追蹤但沒持有」的標的"
 }
