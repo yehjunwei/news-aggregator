@@ -48,11 +48,11 @@ class Preferences:
         return self.platforms.get(platform, True)
 
 
-HOLDINGS_FILE = Path("/home/tony/.openclaw/shared/agents_share_mem/stocks.json")
+HOLDINGS_FILE = Path("/home/tony/.openclaw/shared/agents_share_mem/finance/stocks.json")
 
 
 def _holdings_tickers() -> list[Ticker]:
-    """持股清單以 shared/agents_share_mem/stocks.json 為準。
+    """持股清單以 shared/agents_share_mem/finance/stocks.json 為準。
 
     profile.json 手寫的 tickers 會過期——2026-08 就發現 AAPL 早就不持有，卻還在
     製造蘋果新聞（tickers-news 用它組 Google News 查詢）又替它加分（watchlist_block
