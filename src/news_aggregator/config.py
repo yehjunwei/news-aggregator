@@ -15,7 +15,7 @@ MODELS_FILE = Path("~/.openclaw/config/models.json").expanduser()
 
 # credentials/api_keys.json -> Settings 欄位
 _CREDENTIAL_MAP = {
-    "gemini_api_key": "gemini_api_key",
+    "gemini_api_key": "litellm_gemini_api_key",
     "litellm_base_url": "litellm_base_url",
     "openai_api_key": "openai_api_key",
     "telegram_bot_token": "telegram_bot_token",
